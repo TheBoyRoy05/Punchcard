@@ -1,0 +1,10 @@
+{
+  "id": "punchcard",
+  "name": "Punchcard",
+  "version": "0.0.1",
+  "minAppVersion": "1.10.0",
+  "description": "Track time on notes as blocks on a timeline.",
+  "author": "Issac Roy",
+  "isDesktopOnly": false,
+  "fundingUrl": "https://buymeacoffee.com/issacroy"
+}
