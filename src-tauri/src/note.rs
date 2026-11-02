@@ -1,9 +1,18 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
+
 pub const SPANS_KEY: &str = "worked_on";
 pub const DAYS_KEY: &str = "worked_days";
 pub const LIST_ITEM: &str = "  - ";
+// Same escaping as Python's urllib.parse.quote, so links match the ones task-timer sent.
+const URL_PATH: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b'_')
+    .remove(b'.')
+    .remove(b'-')
+    .remove(b'~')
+    .remove(b'/');
 
 // Perhaps Field enum in the future if we read/write scaler values
 pub type Fields = HashMap<String, Vec<String>>;
@@ -19,6 +28,12 @@ impl Note {
             .file_stem()
             .and_then(|stem| stem.to_str())
             .unwrap_or_default()
+    }
+
+    pub fn url(&self) -> String {
+        let path = self.path.to_string_lossy();
+        let path = utf8_percent_encode(&path, URL_PATH);
+        format!("obsidian://open?path={path}")
     }
 
     pub fn list(&self, key: &str) -> &[String] {
@@ -127,5 +142,18 @@ mod tests {
     #[test]
     fn name_is_file_stem() {
         assert_eq!(note("---\n---").name(), "Port");
+    }
+
+    #[test]
+    fn url_escapes_path_like_python_quote() {
+        let note = Note {
+            path: PathBuf::from("/Vault/Tasks/Port Task_v1.0-~é.md"),
+            fields: Fields::new(),
+        };
+
+        assert_eq!(
+            note.url(),
+            "obsidian://open?path=/Vault/Tasks/Port%20Task_v1.0-~%C3%A9.md"
+        );
     }
 }

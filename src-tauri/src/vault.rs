@@ -75,7 +75,7 @@ pub fn notes(vault: &Path) -> Result<Vec<Note>, TimerError> {
     Ok(notes)
 }
 
-pub fn toggle(vault: &Path, name: &str) -> Result<Toggle, TimerError> {
+pub fn toggle(vault: &Path, name: &str) -> Result<(Toggle, Note), TimerError> {
     let notes = notes(vault)?;
     let matches: Vec<&Note> = notes.iter().filter(|note| note.name() == name).collect();
     let [note] = matches.as_slice() else {
@@ -93,7 +93,7 @@ pub fn toggle(vault: &Path, name: &str) -> Result<Toggle, TimerError> {
     };
     set_days(&mut lines, &toggled.days(), name)?;
     write_lines(&note.path, &lines)?;
-    Ok(toggle)
+    Ok((toggle, toggled))
 }
 
 pub fn sync(vault: &Path) -> Result<Vec<String>, TimerError> {

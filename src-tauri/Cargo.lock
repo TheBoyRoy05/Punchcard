@@ -2967,6 +2967,7 @@ version = "0.0.1"
 dependencies = [
  "chrono",
  "clap",
+ "percent-encoding",
  "serde",
  "serde_json",
  "tauri",

@@ -1,4 +1,5 @@
 pub mod note;
+pub mod notify;
 pub mod vault;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

@@ -5,6 +5,7 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use stint_lib::note::DAYS_KEY;
+use stint_lib::notify;
 use stint_lib::vault::{self, TimerError};
 
 #[derive(Parser)]
@@ -27,6 +28,7 @@ fn main() -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("stint: {error}");
+            notify::show("Timer not changed", &error.to_string(), None);
             ExitCode::FAILURE
         }
     }
@@ -36,8 +38,9 @@ fn run(command: Command) -> Result<(), TimerError> {
     let vault = vault::vault_dir()?;
     match command {
         Command::Toggle { note } => {
-            let toggle = vault::toggle(&vault, &note)?;
+            let (toggle, toggled) = vault::toggle(&vault, &note)?;
             println!("stint: {toggle} {note}");
+            notify::show(&toggle.to_string(), &note, Some(&toggled.url()));
         }
         Command::Sync => {
             for name in vault::sync(&vault)? {
