@@ -6,6 +6,10 @@ use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 pub const SPANS_KEY: &str = "worked_on";
 pub const DAYS_KEY: &str = "worked_days";
 pub const LIST_ITEM: &str = "  - ";
+pub const SPAN_FORMAT: &str = "%y/%m/%d %H:%M";
+const OPEN_STATUSES: [&str; 3] = ["Not Started", "In Progress", "In Review"];
+const TIMED_TYPES: [&str; 2] = ["Task", "Project"];
+const NO_DUE: &str = "9999";
 // Same escaping as Python's urllib.parse.quote, so links match the ones task-timer sent.
 const URL_PATH: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'_')
@@ -17,6 +21,7 @@ const URL_PATH: &AsciiSet = &NON_ALPHANUMERIC
 // Perhaps Field enum in the future if we read/write scaler values
 pub type Fields = HashMap<String, Vec<String>>;
 
+#[derive(Debug)]
 pub struct Note {
     pub path: PathBuf,
     pub fields: Fields,
@@ -50,6 +55,34 @@ impl Note {
             }
         }
         days
+    }
+
+    pub fn running(&self) -> bool {
+        self.list(SPANS_KEY)
+            .last()
+            .is_some_and(|span| span.ends_with('-'))
+    }
+
+    pub fn is_open(&self) -> bool {
+        let timed = self.list("tags").iter().any(|tag| {
+            let tag = tag.trim_start_matches('#');
+            TIMED_TYPES.iter().any(|kind| {
+                tag.strip_prefix(kind)
+                    .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+            })
+        });
+        timed && OPEN_STATUSES.contains(&self.scalar("status"))
+    }
+
+    pub fn due(&self) -> &str {
+        match self.scalar("due") {
+            "" => NO_DUE,
+            due => due,
+        }
+    }
+
+    fn scalar(&self, key: &str) -> &str {
+        self.list(key).first().map_or("", String::as_str)
     }
 }
 

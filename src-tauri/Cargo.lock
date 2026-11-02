@@ -2967,6 +2967,9 @@ version = "0.0.1"
 dependencies = [
  "chrono",
  "clap",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
  "percent-encoding",
  "serde",
  "serde_json",

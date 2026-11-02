@@ -3,9 +3,10 @@
   "identifier": "default",
   "description": "enables the default permissions",
   "windows": [
-    "main"
+    "picker"
   ],
   "permissions": [
-    "core:default"
+    "core:default",
+    "core:window:allow-close"
   ]
 }

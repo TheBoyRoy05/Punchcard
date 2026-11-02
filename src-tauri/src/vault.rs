@@ -8,9 +8,8 @@ use std::process::Command;
 
 use chrono::Local;
 
-use crate::note::{self, DAYS_KEY, LIST_ITEM, Note, SPANS_KEY};
+use crate::note::{self, DAYS_KEY, LIST_ITEM, Note, SPAN_FORMAT, SPANS_KEY};
 
-const SPAN_FORMAT: &str = "%y/%m/%d %H:%M";
 const MACHINE_ENV: &str = ".config/machine.env";
 
 #[derive(Debug)]
@@ -30,9 +29,22 @@ impl fmt::Display for TimerError {
 
 impl std::error::Error for TimerError {}
 
+// Tauri commands send errors to the picker window as plain messages.
+impl serde::Serialize for TimerError {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.0)
+    }
+}
+
 impl From<io::Error> for TimerError {
     fn from(error: io::Error) -> Self {
         Self(error.to_string())
+    }
+}
+
+impl From<String> for TimerError {
+    fn from(message: String) -> Self {
+        Self(message)
     }
 }
 

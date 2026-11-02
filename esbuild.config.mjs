@@ -39,13 +39,15 @@ const plugin = await esbuild.context({
 
 const app = await esbuild.context({
   ...shared,
-  entryPoints: ["src/app/timeline.ts"],
+  entryPoints: ["src/app/timeline.ts", "src/app/picker.ts"],
   format: "esm",
   outdir: "dist",
 });
 
 await mkdir("dist", { recursive: true });
-await cp("src/app/timeline.html", "dist/timeline.html");
+for (const file of ["timeline.html", "picker.html", "picker.css"]) {
+  await cp(`src/app/${file}`, `dist/${file}`);
+}
 
 if (prod) {
   await Promise.all([plugin.rebuild(), app.rebuild()]);
