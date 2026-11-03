@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Punchcard timeline mockup</title>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<style type="text/tailwindcss">
+  /* Tokyo Night values stand in for the Obsidian variables named beside them. */
+  @theme {
+    --color-surface: #1a1b26;   /* --background-primary */
+    --color-card: #16161e;      /* --background-secondary */
+    --color-rule: #292e42;      /* --background-modifier-border */
+    --color-ink: #c0caf5;       /* --text-normal */
+    --color-muted: #a9b1d6;     /* --text-muted */
+    --color-faint: #565f89;     /* --text-faint */
+    --color-now: #7dcfff;       /* --interactive-accent */
+    --color-danger: #ff757f;    /* --text-error */
+    --color-p1: #7aa2f7;        /* --color-blue */
+    --color-p2: #bb9af7;        /* --color-purple */
+    --color-p3: #9ece6a;        /* --color-green */
+    --color-p4: #ff9e64;        /* --color-orange */
+    --font-ui: "CaskaydiaMono Nerd Font Mono", "Cascadia Mono", ui-monospace, monospace;
+    --text-label: 11px;
+    --text-row: 13px;
+    --text-head: 15px;
+  }
+  body { font-family: var(--font-ui); }
+  .ticks {
+    background-image: repeating-linear-gradient(to right, var(--color-rule) 0 1px, transparent 1px calc(100% / 24));
+  }
+  .running {
+    background-image: repeating-linear-gradient(135deg, transparent 0 5px, rgb(0 0 0 / .18) 5px 10px);
+  }
+</style>
+</head>
+<body class="bg-surface text-ink text-row">
+
+<template id="view">
+  <section class="relative mx-auto w-full max-w-[1100px] p-4">
+    <header class="flex items-baseline gap-4 pb-3">
+      <h1 class="text-head font-semibold" data-title></h1>
+      <span class="tabular-nums text-muted" data-total></span>
+      <nav class="ml-auto flex items-center gap-1 text-label">
+        <button class="rounded px-2 py-1 text-muted hover:bg-rule" aria-label="Previous">‹</button>
+        <span class="flex overflow-hidden rounded border border-rule">
+          <button class="px-2 py-1" data-range="Day">Day</button>
+          <button class="px-2 py-1" data-range="Week">Week</button>
+        </span>
+        <button class="rounded px-2 py-1 text-muted hover:bg-rule" aria-label="Next">›</button>
+      </nav>
+    </header>
+    <div class="grid grid-cols-[16rem_1fr] max-[700px]:grid-cols-[12rem_1fr]" data-grid></div>
+  </section>
+</template>
+
+<main id="root" class="flex flex-col gap-56 py-4"></main>
+
+<script>
+  const DAY_START = 4;
+  const NOW = 18 + 9 / 60;
+  const PROJECTS = {
+    Punchcard: "p1",
+    "Knowledge Anchor": "p2",
+    "CSE 291": "p3",
+  };
+
+  const day = [
+    { project: "Punchcard", note: "Port Task Timer to Rust Stint", spans: [[9.5, 11.75], [13, 14.72]] },
+    { project: "Punchcard", note: "Design Timeline Look", spans: [[17.4, null]] },
+    { project: "Knowledge Anchor", note: "Serialize Hold per Domain", spans: [[7.25, 8.9], [15, 17.1]] },
+    { project: "Knowledge Anchor", note: "Knowledge Anchor", spans: [[11.9, 12.4]] },
+    { project: "CSE 291", note: "PA5 Writeup", spans: [[22.5, 25.6]] },
+  ];
+
+  const week = [
+    { day: "Mon 26", blocks: [["Punchcard", "Write Design Doc", 20, 23.5], ["Knowledge Anchor", "S3 Connector", 9, 12.2]] },
+    { day: "Tue 27", blocks: [["Knowledge Anchor", "S3 Connector", 8.5, 11], ["Knowledge Anchor", "Review Gate", 13, 17.5]] },
+    { day: "Wed 28", blocks: [["CSE 291", "PA5 Writeup", 19, 26.2]] },
+    { day: "Thu 29", blocks: [["Knowledge Anchor", "Chorus Baseline", 10, 12], ["Punchcard", "Worked Timeline", 21, 24.8]] },
+    { day: "Fri 30", blocks: [["Punchcard", "Write Design Doc", 23.5, 26.15]] },
+    { day: "Sat 31", blocks: [["Punchcard", "Create Tasks", 8.25, 10], ["Punchcard", "Port Task Timer", 13, 18.5]] },
+    { day: "Sun 1", blocks: [["Punchcard", "Port Task Timer", 19.5, 23.9]] },
+  ];
+
+  const pct = (hour) => ((hour - DAY_START) / 24) * 100;
+
+  const hours = (h) => `${Math.floor(h)}h ${String(Math.round((h % 1) * 60)).padStart(2, "0")}m`;
+
+  function el(tag, cls, text) {
+    const node = document.createElement(tag);
+    node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function axis(withNow) {
+    const row = el("div", "relative col-start-2 h-6 border-b border-rule text-label text-faint tabular-nums");
+    for (let i = 0; i <= 24; i += 2) {
+      const label = el("span", "absolute bottom-1 -translate-x-1/2 " + (i % 4 ? "max-[700px]:hidden" : ""), String((DAY_START + i) % 24).padStart(2, "0"));
+      label.style.left = `${(i / 24) * 100}%`;
+      if (i === 24) label.classList.add("-translate-x-full");
+      if (i === 0) label.classList.replace("-translate-x-1/2", "translate-x-0");
+      row.append(label);
+    }
+    if (withNow) {
+      const dot = el("div", "absolute -bottom-[4px] size-[7px] -translate-x-1/2 rounded-full bg-now");
+      dot.style.left = `${pct(NOW)}%`;
+      row.append(dot);
+    }
+    return row;
+  }
+
+  function block(project, start, end, label, selected) {
+    const color = PROJECTS[project];
+    const running = end === null;
+    const node = el("button", `absolute inset-y-1.5 truncate rounded-[3px] px-1.5 text-left text-label leading-[22px] whitespace-nowrap text-surface font-medium bg-${color} hover:brightness-110`);
+    node.style.left = `${pct(start)}%`;
+    node.style.width = `${pct(running ? NOW : end) - pct(start)}%`;
+    if (label) node.dataset.label = label;
+    if (running) node.classList.add("running", "rounded-r-none");
+    if (selected) {
+      node.classList.add("outline-2", "outline-offset-2", "outline-ink");
+      node.dataset.selected = "";
+    }
+    return node;
+  }
+
+  function lane(withNow) {
+    const track = el("div", "ticks relative h-[34px] border-b border-rule/60");
+    if (withNow) {
+      const line = el("div", "pointer-events-none absolute inset-y-0 z-[1] w-px bg-now");
+      line.style.left = `${pct(NOW)}%`;
+      track.append(line);
+    }
+    return track;
+  }
+
+  function view(title, total, range) {
+    const node = document.getElementById("view").content.cloneNode(true);
+    node.querySelector("[data-title]").textContent = title;
+    node.querySelector("[data-total]").textContent = total;
+    for (const button of node.querySelectorAll("[data-range]")) {
+      if (button.dataset.range === range) button.className += " bg-rule text-ink";
+      else button.className += " text-muted hover:bg-rule/60";
+    }
+    const grid = node.querySelector("[data-grid]");
+    grid.append(el("div", "border-b border-rule"), axis(range === "Day"));
+    return { node, grid };
+  }
+
+  function dayView(selectFirst) {
+    const { node, grid } = view("Monday 2 November", "6h 52m", "Day");
+    let group = null;
+    for (const row of day) {
+      if (row.project !== group) {
+        group = row.project;
+        const head = el("div", "col-span-2 flex items-center gap-2 pt-3 pb-1 text-label text-muted");
+        head.append(el("span", `size-2 rounded-sm bg-${PROJECTS[group]}`), document.createTextNode(group));
+        grid.append(head);
+      }
+      const open = row.spans.some(([, end]) => end === null);
+      const sum = row.spans.reduce((total, [start, end]) => total + ((end ?? NOW) - start), 0);
+      const label = el("div", "flex h-[34px] items-center gap-2 border-b border-rule/60 pr-3 pl-4");
+      const name = el("a", "min-w-0 flex-1 truncate hover:underline cursor-pointer", row.note);
+      name.title = row.note;
+      label.append(name, el("span", "tabular-nums text-faint " + (open ? "text-now" : ""), hours(sum)));
+      const track = lane(true);
+      row.spans.forEach(([start, end], index) => {
+        track.append(block(row.project, start, end, "", selectFirst && row.note === "Serialize Hold per Domain" && index === 1));
+      });
+      grid.append(label, track);
+    }
+    return node;
+  }
+
+  function weekView() {
+    const { node, grid } = view("26 Oct – 1 Nov", "38h 15m", "Week");
+    for (const row of week) {
+      const sum = row.blocks.reduce((total, [, , start, end]) => total + end - start, 0);
+      const label = el("div", "flex h-[34px] items-center gap-2 border-b border-rule/60 pr-3");
+      label.append(el("span", "flex-1", row.day), el("span", "tabular-nums text-faint", hours(sum)));
+      const track = lane(false);
+      for (const [project, note, start, end] of row.blocks) {
+        const b = block(project, start, end, note);
+        b.title = note;
+        track.append(b);
+      }
+      grid.append(label, track);
+    }
+    return node;
+  }
+
+  function picker() {
+    const tasks = [
+      ["p2", "Serialize Hold per Domain", false, true],
+      ["p2", "Knowledge Anchor", false, false],
+      ["p1", "Build Block Storage and Core", false, false],
+      ["p1", "Design Timeline Look", true, false],
+    ];
+    const rows = tasks.map(([color, name, running, current], index) => `
+      <li role="option" class="flex items-center gap-2 rounded px-2 py-1 ${index === 1 ? "bg-rule" : ""}">
+        <span class="size-2 shrink-0 rounded-sm bg-${color}"></span>
+        <span class="min-w-0 flex-1 truncate ${current ? "text-faint" : ""}">${name}</span>
+        ${running ? '<span class="text-label text-now">Running</span>' : ""}
+        ${current ? '<span class="text-label text-faint">Current</span>' : ""}
+      </li>`).join("");
+    return `
+      <div class="absolute inset-x-3 top-10 z-20 rounded-md border border-rule bg-card p-2 shadow-[0_8px_24px_rgb(0_0_0/.45)]">
+        <input class="w-full rounded border border-now bg-surface px-2 py-1 text-row text-ink outline-none" value="lo" aria-label="Move block to task">
+        <ul role="listbox" class="flex flex-col gap-0.5 pt-2">${rows}</ul>
+      </div>`;
+  }
+
+  function popup(picking) {
+    const card = el("div", "absolute z-10 w-[19rem] rounded-md border border-rule bg-card p-3 shadow-[0_8px_24px_rgb(0_0_0/.45)]");
+    card.innerHTML = `
+      <div class="flex items-center gap-2 pb-3">
+        <span class="size-2 rounded-sm bg-p2"></span>
+        <button class="-mx-1 flex min-w-0 flex-1 items-center gap-1 rounded px-1 py-0.5 text-left hover:bg-rule ${picking ? "bg-rule" : ""}" aria-haspopup="listbox" aria-expanded="${picking}">
+          <span class="truncate">Serialize Hold per Domain</span>
+          <span class="text-faint">▾</span>
+        </button>
+        <a class="text-faint hover:text-ink cursor-pointer" title="Open note" aria-label="Open note">↗</a>
+        <button class="text-faint hover:text-ink" aria-label="Close">✕</button>
+      </div>
+      ${picking ? picker() : ""}
+      <div class="grid grid-cols-2 gap-2 pb-2">
+        <label class="flex flex-col gap-1 text-label text-faint">Start
+          <input class="rounded border border-rule bg-surface px-2 py-1 text-row text-ink tabular-nums outline-none focus:border-now" value="15:00">
+        </label>
+        <label class="flex flex-col gap-1 text-label text-faint">End
+          <input class="rounded border border-danger bg-surface px-2 py-1 text-row text-ink tabular-nums outline-none" value="14:50">
+        </label>
+      </div>
+      <p class="pb-2 text-label text-danger">End is before the start.</p>
+      <label class="flex flex-col gap-1 pb-3 text-label text-faint">Log
+        <textarea rows="3" class="resize-none rounded border border-rule bg-surface px-2 py-1 text-row text-ink outline-none focus:border-now">Hold now keyed by domain. Second worker waits instead of racing.</textarea>
+      </label>
+      <div class="flex items-center text-label">
+        <span class="text-faint tabular-nums">2h 06m</span>
+        <button class="ml-auto rounded px-2 py-1 text-danger hover:bg-danger/10">Delete block</button>
+      </div>`;
+    return card;
+  }
+
+  const root = document.getElementById("root");
+  root.append(dayView(false), weekView());
+
+  for (const picking of [false, true]) {
+    const withPopup = dayView(true);
+    const card = popup(picking);
+    card.dataset.popup = "";
+    withPopup.querySelector("section").append(card);
+    root.append(withPopup);
+  }
+
+  const MIN_LABEL_PX = 48;
+  const POPUP_GAP_PX = 6;
+
+  function fitLabels() {
+    for (const node of document.querySelectorAll("[data-label]")) {
+      node.textContent = node.clientWidth >= MIN_LABEL_PX ? node.dataset.label : "";
+    }
+  }
+
+  function anchorPopups() {
+    for (const card of document.querySelectorAll("[data-popup]")) {
+      const section = card.parentElement;
+      const target = section.querySelector("[data-selected]").getBoundingClientRect();
+      const frame = section.getBoundingClientRect();
+      const below = target.bottom - frame.top + POPUP_GAP_PX;
+      const above = target.top - frame.top - POPUP_GAP_PX - card.offsetHeight;
+      const roomBelow = window.innerHeight - target.bottom > card.offsetHeight + POPUP_GAP_PX;
+      card.style.top = `${roomBelow || above < 0 ? below : above}px`;
+      const left = target.left - frame.left;
+      card.style.left = `${Math.max(0, Math.min(left, frame.width - card.offsetWidth))}px`;
+    }
+  }
+
+  function layout() {
+    fitLabels();
+    anchorPopups();
+  }
+
+  window.addEventListener("resize", layout);
+  requestAnimationFrame(layout);
+</script>
+</body>
+</html>

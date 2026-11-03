@@ -1,0 +1,23 @@
+/* Outside Obsidian, these stand in for the Obsidian variables the theme reads. Values come from the Tokyo Night theme and the Obsidian 1.15 app's defaults. */
+:root {
+  color-scheme: dark;
+  --background-primary: #1a1b26;
+  --background-secondary: #16161e;
+  --background-modifier-border: #292e42;
+  --background-modifier-hover: #292e42;
+  --text-normal: #c0caf5;
+  --text-muted: #a9b1d6;
+  --text-faint: #565f89;
+  --text-error: #ff757f;
+  --interactive-accent: #7dcfff;
+  --color-blue: #7aa2f7;
+  --color-purple: #bb9af7;
+  --color-green: #9ece6a;
+  --color-orange: #ff9e64;
+  --color-yellow: #e0af68;
+  --color-cyan: #7dcfff;
+  --font-interface: "CaskaydiaMono Nerd Font Mono", "Cascadia Mono", ui-monospace, Menlo, monospace;
+  --font-ui-smaller: 12px;
+  --font-ui-small: 13px;
+  --font-ui-medium: 15px;
+}

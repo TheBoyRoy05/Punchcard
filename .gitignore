@@ -5,3 +5,4 @@ data.json
 dist
 .DS_Store
 .kiro
+.worktrees

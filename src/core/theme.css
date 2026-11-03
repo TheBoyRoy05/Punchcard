@@ -1,0 +1,32 @@
+/* Preflight is left out because it would restyle Obsidian's own UI. The pc prefix keeps utilities off Obsidian's class names. */
+@layer theme, utilities;
+@import "tailwindcss/theme.css" layer(theme) prefix(pc);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@source "..";
+
+@theme inline {
+  --color-*: initial;
+  --color-surface: var(--background-primary);
+  --color-card: var(--background-secondary);
+  --color-rule: var(--background-modifier-border);
+  --color-hover: var(--background-modifier-hover);
+  --color-ink: var(--text-normal);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+  --color-now: var(--interactive-accent);
+  --color-danger: var(--text-error);
+  --color-project-1: var(--color-blue);
+  --color-project-2: var(--color-purple);
+  --color-project-3: var(--color-green);
+  --color-project-4: var(--color-orange);
+  --color-project-5: var(--color-yellow);
+  --color-project-6: var(--color-cyan);
+
+  --font-*: initial;
+  --font-ui: var(--font-interface);
+
+  --text-*: initial;
+  --text-label: var(--font-ui-smaller);
+  --text-row: var(--font-ui-small);
+  --text-head: var(--font-ui-medium);
+}

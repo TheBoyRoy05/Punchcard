@@ -12,6 +12,7 @@ export default defineConfig(
     "package.json",
     "package-lock.json",
     "tsconfig.json",
+    ".worktrees",
   ]),
   {
     languageOptions: {

@@ -23,9 +23,21 @@ function render(): void {
 
   const items = shown.map((task, index) => {
     const item = document.createElement("li");
-    item.textContent = task.name;
-    item.classList.toggle("running", task.running);
-    item.classList.toggle("selected", index === selected);
+    item.className = "pc:flex pc:items-center pc:gap-2 pc:rounded pc:px-2 pc:py-1 pc:cursor-default";
+    item.classList.toggle("pc:bg-hover", index === selected);
+
+    const name = document.createElement("span");
+    name.className = "pc:min-w-0 pc:flex-1 pc:truncate";
+    name.textContent = task.name;
+    item.append(name);
+
+    if (task.running) {
+      const running = document.createElement("span");
+      running.className = "pc:text-label pc:text-now";
+      running.textContent = "Running";
+      item.append(running);
+    }
+
     // Keeps focus in the query box, so typing still filters after a click.
     item.addEventListener("mousedown", (event) => event.preventDefault());
     item.addEventListener("click", () => void toggle(task));

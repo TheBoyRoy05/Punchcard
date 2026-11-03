@@ -45,7 +45,7 @@ const app = await esbuild.context({
 });
 
 await mkdir("dist", { recursive: true });
-for (const file of ["timeline.html", "picker.html", "picker.css"]) {
+for (const file of ["timeline.html", "picker.html"]) {
   await cp(`src/app/${file}`, `dist/${file}`);
 }
 
