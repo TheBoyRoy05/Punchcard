@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
+use punchcard_core::Log;
 
-pub const SPANS_KEY: &str = "worked_on";
 pub const DAYS_KEY: &str = "worked_days";
+pub const HOURS_KEY: &str = "worked_hours";
 pub const LIST_ITEM: &str = "  - ";
-pub const SPAN_FORMAT: &str = "%y/%m/%d %H:%M";
 const OPEN_STATUSES: [&str; 3] = ["Not Started", "In Progress", "In Review"];
 const TIMED_TYPES: [&str; 2] = ["Task", "Project"];
 const NO_DUE: &str = "9999";
@@ -25,9 +25,16 @@ pub type Fields = HashMap<String, Vec<String>>;
 pub struct Note {
     pub path: PathBuf,
     pub fields: Fields,
+    pub log: Log,
 }
 
 impl Note {
+    pub fn from_lines(path: PathBuf, lines: &[String]) -> Option<Self> {
+        let fields = parse_frontmatter(lines)?;
+        let log = Log::parse(lines);
+        Some(Self { path, fields, log })
+    }
+
     pub fn name(&self) -> &str {
         self.path
             .file_stem()
@@ -43,24 +50,6 @@ impl Note {
 
     pub fn list(&self, key: &str) -> &[String] {
         self.fields.get(key).map_or(&[], Vec::as_slice)
-    }
-
-    pub fn days(&self) -> Vec<String> {
-        let mut days = Vec::new();
-        for span in self.list(SPANS_KEY) {
-            let date = span.split_once(' ').map_or(span.as_str(), |(date, _)| date);
-            let day = format!("[[{}]]", date.replace('/', "-"));
-            if !days.contains(&day) {
-                days.push(day);
-            }
-        }
-        days
-    }
-
-    pub fn running(&self) -> bool {
-        self.list(SPANS_KEY)
-            .last()
-            .is_some_and(|span| span.ends_with('-'))
     }
 
     pub fn is_open(&self) -> bool {
@@ -132,11 +121,7 @@ mod tests {
     }
 
     fn note(text: &str) -> Note {
-        let fields = parse_frontmatter(&lines(text)).unwrap();
-        Note {
-            path: PathBuf::from("Tasks/Port.md"),
-            fields,
-        }
+        Note::from_lines(PathBuf::from("Tasks/Port.md"), &lines(text)).unwrap()
     }
 
     #[test]
@@ -152,24 +137,15 @@ mod tests {
 
     #[test]
     fn empty_value_starts_an_empty_list() {
-        let fields = parse_frontmatter(&lines("---\nworked_on:\n---")).unwrap();
+        let fields = parse_frontmatter(&lines("---\nworked_days:\n---")).unwrap();
 
-        assert!(fields["worked_on"].is_empty());
+        assert!(fields["worked_days"].is_empty());
     }
 
     #[test]
     fn note_without_closed_frontmatter_has_no_fields() {
         assert!(parse_frontmatter(&lines("no frontmatter")).is_none());
         assert!(parse_frontmatter(&lines("---\nstatus: Done")).is_none());
-    }
-
-    #[test]
-    fn days_link_each_start_date_once_in_order() {
-        let note = note(
-            "---\nworked_on:\n  - 26/10/30 23:33 - 26/10/31 00:40\n  - 26/10/31 09:00 -\n  - 26/10/30 08:00 - 26/10/30 09:00\n---",
-        );
-
-        assert_eq!(note.days(), ["[[26-10-30]]", "[[26-10-31]]"]);
     }
 
     #[test]
@@ -182,6 +158,7 @@ mod tests {
         let note = Note {
             path: PathBuf::from("/Vault/Tasks/Port Task_v1.0-~é.md"),
             fields: Fields::new(),
+            log: Log::default(),
         };
 
         assert_eq!(

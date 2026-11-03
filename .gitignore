@@ -3,6 +3,7 @@ main.js
 *.map
 data.json
 dist
+src/wasm/pkg
 .DS_Store
 .kiro
 .worktrees

@@ -6,7 +6,20 @@ authors = ["Issac Roy"]
 license = "MIT"
 repository = "https://github.com/TheBoyRoy05/Punchcard"
 edition = "2024"
+default-run = "stint"
 rust-version = "1.90"
+
+[workspace]
+members = ["core", "wasm"]
+resolver = "3"
+
+# Size over speed for the wasm build only; stint keeps the plain release profile.
+[profile.wasm]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
 
 [lib]
 name = "stint_lib"
@@ -22,6 +35,10 @@ tauri = { version = "2.12.5" }
 clap = { version = "4.6.7", features = ["derive"] }
 chrono = "0.4.45"
 percent-encoding = "2.3.2"
+punchcard-core = { path = "core" }
+
+[dev-dependencies]
+punchcard-core = { path = "core", features = ["test-support"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSEvent", "NSResponder", "NSScreen", "NSWindow"] }

@@ -1,0 +1,10 @@
+{
+  "blocks": [
+    { "start": "2026-10-30T09:00", "end": null, "entry": "Running, with two spaces after the dash." },
+    { "start": "2026-10-29T10:00", "end": "2026-10-29T11:00", "entry": "Closed, with a tab after the end." }
+  ],
+  "bad_headings": [],
+  "worked_days": ["26-10-29", "26-10-30"],
+  "worked_hours": 1,
+  "formatted": "---\ntags:\n  - \"#Task\"\n---\n### Log\n#### 26/10/30 09:00 -\nRunning, with two spaces after the dash.\n#### 26/10/29 10:00 - 26/10/29 11:00\nClosed, with a tab after the end.\n"
+}

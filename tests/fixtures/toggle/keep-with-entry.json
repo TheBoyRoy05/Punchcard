@@ -1,0 +1,6 @@
+{
+  "now": "2026-11-01T11:40",
+  "toggle": "Stopped",
+  "after": "---\ntags:\n  - \"#Task\"\nworked_days:\n  - \"[[26-11-01]]\"\nworked_hours: 0.03\n---\n### Log\n#### 26/11/01 11:38 - 26/11/01 11:40\nQuick note.\n",
+  "edit_error": "A block must be at least 3 minutes long."
+}

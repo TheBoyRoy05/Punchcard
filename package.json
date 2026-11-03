@@ -7,11 +7,13 @@
   "private": true,
   "scripts": {
     "dev": "node esbuild.config.mjs & npm run css -- --watch",
-    "build": "tsc --noEmit && node esbuild.config.mjs production && npm run css",
+    "build": "npm run wasm && tsc --noEmit && node esbuild.config.mjs production && npm run css",
     "css": "tailwindcss -i src/app/app.css -o dist/app.css",
     "lint": "eslint .",
+    "pretest": "npm run wasm",
     "test": "vitest run --passWithNoTests --exclude '.worktrees/**'",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "wasm": "node scripts/build-wasm.mjs"
   },
   "license": "MIT",
   "dependencies": {

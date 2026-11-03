@@ -1,0 +1,12 @@
+{
+  "blocks": [
+    {
+      "start": "2026-10-29T10:00",
+      "end": "2026-10-29T11:00",
+      "entry": "A block heading needs one space after its four hashes.\n####\t26/10/28 09:00 -\n####\n#### \n##### Deeper headings are entry text."
+    }
+  ],
+  "bad_headings": ["####\t26/10/28 09:00 -", "####", "#### "],
+  "worked_days": ["26-10-29"],
+  "worked_hours": 1
+}

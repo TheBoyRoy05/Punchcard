@@ -1,0 +1,14 @@
+{
+  "blocks": [
+    {
+      "start": "2027-03-14T03:00",
+      "end": "2027-03-14T04:00",
+      "entry": "Block times are wall clock, so the 02:30 that spring forward skips in America/Los_Angeles still parses."
+    },
+    { "start": "2027-03-14T02:30", "end": null, "entry": "" },
+    { "start": "2026-11-01T00:30", "end": "2026-11-01T02:30", "entry": "Crosses fall back: 2 h on the clock, 3 h elapsed." }
+  ],
+  "bad_headings": [],
+  "worked_days": ["26-10-31", "27-03-13"],
+  "worked_hours": 3
+}

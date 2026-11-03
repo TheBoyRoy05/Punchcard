@@ -1,0 +1,5 @@
+{
+  "day_start_hour": 4,
+  "block_rejoin_minutes": 5,
+  "block_min_minutes": 3
+}

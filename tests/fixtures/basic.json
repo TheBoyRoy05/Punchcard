@@ -1,0 +1,13 @@
+{
+  "blocks": [
+    { "start": "2026-10-31T00:25", "end": null, "entry": "" },
+    {
+      "start": "2026-10-30T23:33",
+      "end": "2026-10-30T23:58",
+      "entry": "Wrote the design doc. Settled on Tauri.\n##### Open questions\n- Linux later"
+    }
+  ],
+  "bad_headings": [],
+  "worked_days": ["26-10-30"],
+  "worked_hours": 0.42
+}

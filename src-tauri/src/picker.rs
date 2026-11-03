@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use chrono::Local;
+use punchcard_core::time::wall_clock;
 use serde::Serialize;
 use tauri::{State, WebviewWindowBuilder, Window, WindowEvent};
 
@@ -50,10 +51,10 @@ pub fn open(vault: PathBuf) -> Result<(), TimerError> {
 #[tauri::command(async)]
 fn tasks(vault: State<'_, Vault>) -> Result<Vec<Task>, TimerError> {
     let notes = vault::notes(&vault.0)?;
-    let ranked = rank::ranked(notes, Local::now().naive_local())?;
+    let ranked = rank::ranked(notes, wall_clock(Local::now().naive_local()));
     let tasks = ranked.iter().map(|note| Task {
         name: note.name().to_string(),
-        running: note.running(),
+        running: note.log.running(),
     });
     Ok(tasks.collect())
 }

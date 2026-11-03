@@ -6,6 +6,8 @@ export default defineConfig(
   globalIgnores([
     "node_modules",
     "esbuild.config.mjs",
+    "scripts",
+    "src/wasm/pkg",
     "main.js",
     "dist",
     "src-tauri",
@@ -28,5 +30,7 @@ export default defineConfig(
   // tsc already checks names, and no-undef misreads names resolved inside a `declare module` block.
   { files: ["**/*.ts"], rules: { "no-undef": "off" } },
   // The Tauri webview has no Obsidian globals such as createEl.
-  { files: ["src/app/**/*.ts"], rules: { "obsidianmd/prefer-create-el": "off" } }
+  { files: ["src/app/**/*.ts"], rules: { "obsidianmd/prefer-create-el": "off" } },
+  // Tests run in Node, never on Obsidian mobile.
+  { files: ["tests/**/*.ts"], rules: { "obsidianmd/no-nodejs-modules": "off" } }
 );
