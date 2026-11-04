@@ -26,7 +26,7 @@ pub fn read(vault: &Path) -> Result<Settings, TimerError> {
         TimerError(message)
     })?;
 
-    let fields = note::parse_frontmatter(&lines).unwrap_or_default();
+    let fields = note::parse_frontmatter(&lines).unwrap_or_default().fields;
     let setting = |key: &str, unit: &str, range: RangeInclusive<u32>| {
         let value = fields
             .get(key)

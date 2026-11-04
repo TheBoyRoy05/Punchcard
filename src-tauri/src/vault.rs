@@ -19,6 +19,7 @@ use settings::Settings;
 
 pub mod migrate;
 pub mod settings;
+pub mod tasks;
 
 const MACHINE_ENV: &str = ".config/machine.env";
 

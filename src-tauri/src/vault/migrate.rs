@@ -58,7 +58,7 @@ pub fn migrate(vault: &Path) -> Result<Vec<Migrated>, TimerError> {
     let day_start = settings::read(vault)?.day_start;
     let mut migrated = Vec::new();
     for note in notes(vault)? {
-        let Some(spans) = note.fields.get(SPANS_KEY) else {
+        let Some(spans) = note.frontmatter.fields.get(SPANS_KEY) else {
             continue;
         };
         let name = note.name().to_string();
