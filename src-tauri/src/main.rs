@@ -22,7 +22,7 @@ enum Command {
     Pick,
     /// Start or stop the running block of the note with this name
     Toggle { note: String },
-    /// Rebuild worked_days and worked_hours from every note's log, reporting bad headings, extra running blocks and buried logs
+    /// Rebuild punchcard__worked_days and punchcard__worked_hours from every note's log, reporting bad headings, extra running blocks and buried logs
     Sync,
     /// Print Not Started and In Progress Tasks notes as JSON lines, with estimates and unfinished blockers; notes that do not parse are named on stderr
     Tasks {

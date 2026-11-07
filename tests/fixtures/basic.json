@@ -8,6 +8,6 @@
     }
   ],
   "bad_headings": [],
-  "worked_days": ["26-10-30"],
-  "worked_hours": 0.42
+  "punchcard__worked_days": ["26-10-30"],
+  "punchcard__worked_hours": 0.42
 }

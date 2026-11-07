@@ -1,6 +1,6 @@
 {
   "now": "2026-11-01T11:40",
   "toggle": "Discarded",
-  "after": "---\ntags:\n  - \"#Task\"\nworked_days:\n  - \"[[26-11-01]]\"\nworked_hours: 1\n---\n### Log\n#### 26/11/01 10:00 - 26/11/01 11:00\nEarlier.\n",
+  "after": "---\ntags:\n  - \"#Task\"\npunchcard__worked_days:\n  - \"[[26-11-01]]\"\npunchcard__worked_hours: 1\n---\n### Log\n#### 26/11/01 10:00 - 26/11/01 11:00\nEarlier.\n",
   "edit_error": "A block must be at least 3 minutes long."
 }

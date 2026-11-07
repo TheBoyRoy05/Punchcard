@@ -223,7 +223,9 @@ mod tests {
     struct Expected {
         blocks: Vec<ExpectedBlock>,
         bad_headings: Vec<String>,
+        #[serde(rename = "punchcard__worked_days")]
         worked_days: Vec<String>,
+        #[serde(rename = "punchcard__worked_hours")]
         worked_hours: f64,
         formatted: Option<String>,
     }

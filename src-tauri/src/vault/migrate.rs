@@ -7,6 +7,8 @@ use super::{TimerError, notes, read_lines, rebuild_derived, set_field, settings,
 use crate::note::LIST_ITEM;
 
 const SPANS_KEY: &str = "worked_on";
+// task-timer's name for DAYS_KEY; left in place, a note would hold both.
+const LEGACY_DAYS_KEY: &str = "worked_days";
 
 #[derive(Debug, PartialEq)]
 pub enum Migrated {
@@ -99,6 +101,7 @@ pub fn migrate(vault: &Path) -> Result<Vec<Migrated>, TimerError> {
             insert_block(&mut lines, block);
         }
         set_field(&mut lines, SPANS_KEY, Vec::new(), &name)?;
+        set_field(&mut lines, LEGACY_DAYS_KEY, Vec::new(), &name)?;
         rebuild_derived(&mut lines, day_start, &name)?;
         write_lines(&note.path, &lines)?;
 
@@ -134,7 +137,25 @@ mod tests {
         assert_eq!(migrated, [moved]);
         assert_eq!(
             fs::read_to_string(&note).unwrap(),
-            "---\ntags:\nworked_days:\n  - \"[[26-10-30]]\"\n  - \"[[26-10-31]]\"\nworked_hours: 1\n---\nbody\n### Log\n#### 26/10/31 09:00 -\n#### 26/10/30 09:00 - 26/10/30 10:00\n"
+            "---\ntags:\npunchcard__worked_days:\n  - \"[[26-10-30]]\"\n  - \"[[26-10-31]]\"\npunchcard__worked_hours: 1\n---\nbody\n### Log\n#### 26/10/31 09:00 -\n#### 26/10/30 09:00 - 26/10/30 10:00\n"
+        );
+    }
+
+    #[test]
+    fn task_timer_worked_days_is_replaced_by_punchcard_key() {
+        let vault = TempVault::new("migrate-legacy-days");
+        let note = vault.path.join("Port.md");
+        fs::write(
+            &note,
+            "---\nworked_on:\n  - 26/10/30 09:00 - 26/10/30 10:00\nworked_days:\n  - \"[[26-10-29]]\"\ntags:\n---\nbody\n",
+        )
+        .unwrap();
+
+        migrate(&vault.path).unwrap();
+
+        assert_eq!(
+            fs::read_to_string(&note).unwrap(),
+            "---\ntags:\npunchcard__worked_days:\n  - \"[[26-10-30]]\"\npunchcard__worked_hours: 1\n---\nbody\n### Log\n#### 26/10/30 09:00 - 26/10/30 10:00\n"
         );
     }
 

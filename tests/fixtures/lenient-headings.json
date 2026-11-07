@@ -12,6 +12,6 @@
     "####  26/01/02 09:05 -",
     "#### 26/10/28 09:00 -26/10/28 10:00"
   ],
-  "worked_days": ["26-10-29"],
-  "worked_hours": 1
+  "punchcard__worked_days": ["26-10-29"],
+  "punchcard__worked_hours": 1
 }

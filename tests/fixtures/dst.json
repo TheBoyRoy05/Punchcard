@@ -9,6 +9,6 @@
     { "start": "2026-11-01T00:30", "end": "2026-11-01T02:30", "entry": "Crosses fall back: 2 h on the clock, 3 h elapsed." }
   ],
   "bad_headings": [],
-  "worked_days": ["26-10-31", "27-03-13"],
-  "worked_hours": 3
+  "punchcard__worked_days": ["26-10-31", "27-03-13"],
+  "punchcard__worked_hours": 3
 }

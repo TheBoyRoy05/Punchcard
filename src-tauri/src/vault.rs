@@ -663,7 +663,7 @@ mod tests {
     fn sync_leaves_blocks_shorter_than_the_minimum() {
         let vault = TempVault::new("sync-short");
         let note = vault.path.join("Port.md");
-        let text = "---\nworked_days:\n  - \"[[26-11-01]]\"\nworked_hours: 0.02\n---\n### Log\n#### 26/11/01 09:00 - 26/11/01 09:01\n";
+        let text = "---\npunchcard__worked_days:\n  - \"[[26-11-01]]\"\npunchcard__worked_hours: 0.02\n---\n### Log\n#### 26/11/01 09:00 - 26/11/01 09:01\n";
         fs::write(&note, text).unwrap();
 
         assert_eq!(sync(&vault.path).unwrap(), []);
@@ -685,12 +685,12 @@ mod tests {
     #[test]
     fn rebuild_replaces_days_and_hours_in_place() {
         let text = rebuilt(
-            "---\nworked_days:\n  - \"[[26-10-30]]\"\nworked_hours: 9\ntags:\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:30",
+            "---\npunchcard__worked_days:\n  - \"[[26-10-30]]\"\npunchcard__worked_hours: 9\ntags:\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:30",
         );
 
         assert_eq!(
             text,
-            "---\nworked_days:\n  - \"[[26-10-31]]\"\nworked_hours: 1.5\ntags:\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:30"
+            "---\npunchcard__worked_days:\n  - \"[[26-10-31]]\"\npunchcard__worked_hours: 1.5\ntags:\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:30"
         );
     }
 
@@ -700,14 +700,16 @@ mod tests {
 
         assert!(
             text.starts_with(
-                "---\ntags:\nworked_days:\n  - \"[[26-10-31]]\"\nworked_hours: 1\n---"
+                "---\ntags:\npunchcard__worked_days:\n  - \"[[26-10-31]]\"\npunchcard__worked_hours: 1\n---"
             )
         );
     }
 
     #[test]
     fn rebuild_removes_keys_when_log_is_empty() {
-        let text = rebuilt("---\nworked_days:\n  - \"[[26-10-30]]\"\nworked_hours: 2\n---\nbody");
+        let text = rebuilt(
+            "---\npunchcard__worked_days:\n  - \"[[26-10-30]]\"\npunchcard__worked_hours: 2\n---\nbody",
+        );
 
         assert_eq!(text, "---\n---\nbody");
     }
@@ -718,7 +720,7 @@ mod tests {
 
         assert_eq!(
             text,
-            "---\nworked_days:\n  - \"[[26-10-31]]\"\n---\n### Log\n#### 26/11/01 01:00 -"
+            "---\npunchcard__worked_days:\n  - \"[[26-10-31]]\"\n---\n### Log\n#### 26/11/01 01:00 -"
         );
     }
 }

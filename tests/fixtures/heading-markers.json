@@ -7,6 +7,6 @@
     }
   ],
   "bad_headings": ["####\t26/10/28 09:00 -", "####", "#### "],
-  "worked_days": ["26-10-29"],
-  "worked_hours": 1
+  "punchcard__worked_days": ["26-10-29"],
+  "punchcard__worked_hours": 1
 }

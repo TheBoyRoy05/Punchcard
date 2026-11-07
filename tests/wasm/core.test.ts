@@ -24,8 +24,8 @@ import {
 interface Expected {
   blocks: { start: string; end: string | null; entry: string }[];
   bad_headings: string[];
-  worked_days: string[];
-  worked_hours: number;
+  punchcard__worked_days: string[];
+  punchcard__worked_hours: number;
   formatted?: string;
 }
 
@@ -64,8 +64,8 @@ describe.each(fixtures("../fixtures/"))("fixture %s", (name) => {
   });
 
   it("derives worked days and hours", () => {
-    expect(workedDays(spans, DAY_START_HOUR)).toEqual(expected.worked_days);
-    expect(workedHours(spans)).toBe(expected.worked_hours);
+    expect(workedDays(spans, DAY_START_HOUR)).toEqual(expected.punchcard__worked_days);
+    expect(workedHours(spans)).toBe(expected.punchcard__worked_hours);
   });
 
   // A fixture with non-canonical headings sets `formatted`; every other one round trips byte for byte.
