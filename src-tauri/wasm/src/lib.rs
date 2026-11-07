@@ -264,6 +264,13 @@ pub fn format_time(time: f64) -> Result<String, JsError> {
     Ok(time::format_time(from_minutes(time, YEARS)?))
 }
 
+#[wasm_bindgen(js_name = parseTime)]
+pub fn parse_time(text: &str) -> Result<f64, JsError> {
+    let time =
+        time::parse_time(text).ok_or_else(|| JsError::new(&format!("Not a block time: {text}")))?;
+    Ok(to_minutes(time))
+}
+
 fn from_minutes(minutes: f64, years: impl RangeBounds<i32>) -> Result<NaiveDateTime, JsError> {
     let time = whole_number(minutes)
         .and_then(|minutes| EPOCH.checked_add_signed(TimeDelta::minutes(minutes)))

@@ -1,22 +1,12 @@
 import esbuild from "esbuild";
 import process from "process";
-import { cp, mkdir } from "node:fs/promises";
 import { builtinModules } from "node:module";
 
 const prod = process.argv[2] === "production";
 
-const shared = {
-  bundle: true,
-  target: "es2021",
-  logLevel: "info",
-  sourcemap: prod ? false : "inline",
-  treeShaking: true,
-  minify: prod,
-};
-
-const plugin = await esbuild.context({
-  ...shared,
+const context = await esbuild.context({
   entryPoints: ["src/obsidian/main.ts"],
+  bundle: true,
   external: [
     "obsidian",
     "electron",
@@ -34,24 +24,17 @@ const plugin = await esbuild.context({
     ...builtinModules,
   ],
   format: "cjs",
+  target: "es2021",
+  logLevel: "info",
+  sourcemap: prod ? false : "inline",
+  treeShaking: true,
   outfile: "main.js",
+  minify: prod,
 });
-
-const app = await esbuild.context({
-  ...shared,
-  entryPoints: ["src/app/timeline.ts", "src/app/picker.ts"],
-  format: "esm",
-  outdir: "dist",
-});
-
-await mkdir("dist", { recursive: true });
-for (const file of ["timeline.html", "picker.html"]) {
-  await cp(`src/app/${file}`, `dist/${file}`);
-}
 
 if (prod) {
-  await Promise.all([plugin.rebuild(), app.rebuild()]);
+  await context.rebuild();
   process.exit(0);
 } else {
-  await Promise.all([plugin.watch(), app.watch()]);
+  await context.watch();
 }

@@ -5,7 +5,8 @@
   "identifier": "com.issacroy.punchcard",
   "build": {
     "frontendDist": "../dist",
-    "beforeDevCommand": "npm run build",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
   },
   "app": {

@@ -14,6 +14,7 @@ import {
   MS_PER_MINUTE,
   overlaps,
   parseLog,
+  parseTime,
   wallClock,
   workedDays,
   workedHours,
@@ -133,6 +134,11 @@ describe("the wasm boundary", () => {
   it("formats times and spans as headings write them", () => {
     expect(formatTime(now)).toBe("26/11/02 12:00");
     expect(formatSpan({ start: now, end: null })).toBe("26/11/02 12:00 -");
+  });
+
+  it("parses a heading time back to its minute", () => {
+    expect(parseTime("26/11/02 12:00")).toBe(now);
+    expect(() => parseTime("26/11/02 9:5")).toThrow("Not a block time: 26/11/02 9:5");
   });
 
   it("carries the day rules across", () => {

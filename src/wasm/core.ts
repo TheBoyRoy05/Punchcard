@@ -11,12 +11,15 @@ export {
   logicalDay,
   overlaps,
   parseLog,
+  parseTime,
   workedDays,
   workedHours,
 } from "./pkg/punchcard_wasm";
 export type { Block, ClosedSpan, EditResult, Log, Minutes, ParsedLog, Span } from "./pkg/punchcard_wasm";
 
 export const EPOCH_MS = Date.UTC(2000, 0, 1);
+// 2000-01-01, minute 0, was a Saturday: index 5 of a Monday-first week, Monday = 0.
+export const EPOCH_WEEKDAY_INDEX = 5;
 export const MS_PER_MINUTE = 60_000;
 
 // Obsidian loads only main.js, so the wasm travels inside the bundle and compiles synchronously on import.

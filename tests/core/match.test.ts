@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { matches } from "../src/app/match";
+import { matches } from "../../src/core/match";
 
 describe("matches", () => {
   it("matches characters in order, ignoring case", () => {

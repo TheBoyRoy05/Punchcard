@@ -9,10 +9,11 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "isolatedModules": true,
+    "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "eslint.config.mts"]
+  "include": ["src/**/*.ts", "src/**/*.svelte", "tests/**/*.ts", "eslint.config.mts", "playwright.config.ts", "vite.config.ts"]
 }

@@ -7,3 +7,5 @@ src/wasm/pkg
 .DS_Store
 .kiro
 .worktrees
+test-results
+.screenshots
