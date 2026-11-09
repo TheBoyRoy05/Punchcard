@@ -19,7 +19,6 @@ use crate::note::{DAYS_KEY, HOURS_KEY, LIST_ITEM, Note};
 use settings::Settings;
 
 pub mod blocks;
-pub mod migrate;
 pub mod settings;
 pub mod tasks;
 
