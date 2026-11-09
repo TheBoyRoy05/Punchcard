@@ -22,6 +22,9 @@ pub enum Migrated {
 impl fmt::Display for Migrated {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Migrated::Moved { note, blocks: 0 } => {
+                write!(formatter, "removed the empty {SPANS_KEY} of {note}")
+            }
             Migrated::Moved { note, blocks } => {
                 write!(
                     formatter,
@@ -37,7 +40,7 @@ impl fmt::Display for Migrated {
             Migrated::SkippedUnindented { note } => {
                 write!(
                     formatter,
-                    "skipped {note}: {SPANS_KEY} has no items indented as {LIST_ITEM:?}, move its spans by hand"
+                    "skipped {note}: {SPANS_KEY} has lines not indented as {LIST_ITEM:?}, move its spans by hand"
                 )
             }
             Migrated::SkippedFilledLog { note } => {
@@ -66,13 +69,17 @@ pub fn migrate(vault: &Path) -> Result<Vec<Migrated>, TimerError> {
         let name = note.name().to_string();
 
         // Removing the key alone would leave its unindented span lines in the frontmatter.
-        if spans.is_empty() {
+        let unread = &note.frontmatter.skipped;
+        if unread
+            .iter()
+            .any(|line| line.key.as_deref() == Some(SPANS_KEY))
+        {
             migrated.push(Migrated::SkippedUnindented { note: name });
             continue;
         }
 
         // Spans inserted above newer blocks would break newest-first order and could duplicate a block.
-        if !note.log.blocks.is_empty() {
+        if !spans.is_empty() && !note.log.blocks.is_empty() {
             migrated.push(Migrated::SkippedFilledLog { note: name });
             continue;
         }
@@ -156,6 +163,29 @@ mod tests {
         assert_eq!(
             fs::read_to_string(&note).unwrap(),
             "---\ntags:\npunchcard__worked_days:\n  - \"[[26-10-30]]\"\npunchcard__worked_hours: 1\n---\nbody\n### Log\n#### 26/10/30 09:00 - 26/10/30 10:00\n"
+        );
+    }
+
+    #[test]
+    fn an_empty_key_is_removed_without_touching_the_log() {
+        let vault = TempVault::new("migrate-empty");
+        let note = vault.path.join("Port.md");
+        fs::write(
+            &note,
+            "---\nworked_on:\ntags:\n---\nbody\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:00\n",
+        )
+        .unwrap();
+
+        let migrated = migrate(&vault.path).unwrap();
+
+        let moved = Migrated::Moved {
+            note: "Port".to_string(),
+            blocks: 0,
+        };
+        assert_eq!(migrated, [moved]);
+        assert_eq!(
+            fs::read_to_string(&note).unwrap(),
+            "---\ntags:\npunchcard__worked_days:\n  - \"[[26-10-31]]\"\npunchcard__worked_hours: 1\n---\nbody\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:00\n"
         );
     }
 
