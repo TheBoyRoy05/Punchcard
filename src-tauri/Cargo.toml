@@ -38,6 +38,7 @@ percent-encoding = "2.3.2"
 punchcard-core = { path = "core" }
 notify-rust = "4.19.0"
 open = "5.4.5"
+tempfile = "3"
 
 [dev-dependencies]
 punchcard-core = { path = "core", features = ["test-support"] }

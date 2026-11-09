@@ -1,7 +1,7 @@
 use std::ffi::OsStr;
 use std::fmt;
 use std::fs;
-use std::io;
+use std::io::{self, Write};
 use std::iter;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
@@ -388,8 +388,23 @@ fn read_lines(path: &Path) -> io::Result<Vec<String>> {
         .collect())
 }
 
+// The note is replaced by one rename, so a crash or a full disk mid-write leaves the old note whole. The new file
+// gets a new created time, which no vault view reads. A symlinked note is written at its target, which stays linked,
+// and the temp file sits beside that target because a rename cannot cross file systems.
 fn write_lines(path: &Path, lines: &[String]) -> io::Result<()> {
-    fs::write(path, lines.join("\n"))
+    let path = &fs::canonicalize(path)?;
+    let folder = path.parent().unwrap_or(Path::new("."));
+    let mut temp = tempfile::Builder::new()
+        .prefix(".stint-")
+        .tempfile_in(folder)?;
+    temp.write_all(lines.join("\n").as_bytes())?;
+    temp.as_file().sync_all()?;
+    // A temp file is private to its owner, so the note keeps the permissions it had.
+    if let Ok(metadata) = fs::metadata(path) {
+        temp.as_file().set_permissions(metadata.permissions())?;
+    }
+    temp.persist(path)?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -632,6 +647,48 @@ pub(crate) mod tests {
         let (toggle, _) = toggled("---\n---\n### Log\n#### 26/11/01 11:00 - 26/11/01 11:42");
 
         assert_eq!(toggle, Toggle::Started);
+    }
+
+    #[test]
+    fn a_write_replaces_the_note_keeps_its_permissions_and_leaves_no_temp_file() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let vault = TempVault::new("write-atomic");
+        let note = vault.path.join("Port.md");
+        fs::write(&note, "old").unwrap();
+        fs::set_permissions(&note, fs::Permissions::from_mode(0o644)).unwrap();
+
+        write_lines(&note, &["new".to_string(), "text".to_string()]).unwrap();
+
+        assert_eq!(fs::read_to_string(&note).unwrap(), "new\ntext");
+        let mode = fs::metadata(&note).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o644);
+        let names = fs::read_dir(&vault.path).unwrap();
+        let names: Vec<_> = names.map(|entry| entry.unwrap().file_name()).collect();
+        assert!(
+            names
+                .iter()
+                .all(|name| !name.to_string_lossy().starts_with(".stint-"))
+        );
+    }
+
+    #[test]
+    fn a_write_through_a_symlink_updates_its_target_and_keeps_the_link() {
+        let vault = TempVault::new("write-symlink");
+        let target = vault.path.join("_Meta/Port.md");
+        let link = vault.path.join("Port.md");
+        fs::write(&target, "old").unwrap();
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+
+        write_lines(&link, &["new".to_string()]).unwrap();
+
+        assert!(
+            fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert_eq!(fs::read_to_string(&target).unwrap(), "new");
     }
 
     #[test]
