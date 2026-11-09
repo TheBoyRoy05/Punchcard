@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use chrono::{Local, NaiveDate};
@@ -17,10 +16,6 @@ use crate::{popup, rank};
 const WINDOW: &str = "timeline";
 // The start of every Note::url, and the only link the window hands to another app.
 const NOTE_URL: &str = "obsidian://open?path=";
-#[cfg(target_os = "macos")]
-const OPENER: &str = "open";
-#[cfg(not(target_os = "macos"))]
-const OPENER: &str = "xdg-open";
 
 // Set once a note link hands focus to Obsidian, so the blur that follows closes the timeline instead of taking focus back.
 static NOTE_OPENED: AtomicBool = AtomicBool::new(false);
@@ -120,9 +115,8 @@ fn opening(vault: &Path, range: Range) -> Result<Opening, TimerError> {
 // Note links open in Obsidian. The window stays on its own pages, since it has no title bar to come back from another.
 fn navigate(url: &Url, dev_url: Option<&Url>) -> bool {
     if url.as_str().starts_with(NOTE_URL) {
-        match Command::new(OPENER).arg(url.as_str()).status() {
-            Ok(status) if status.success() => NOTE_OPENED.store(true, Ordering::Relaxed),
-            Ok(status) => eprintln!("stint: {url} not opened: {OPENER} {status}"),
+        match open::that(url.as_str()) {
+            Ok(()) => NOTE_OPENED.store(true, Ordering::Relaxed),
             Err(error) => eprintln!("stint: {url} not opened: {error}"),
         }
         return false;

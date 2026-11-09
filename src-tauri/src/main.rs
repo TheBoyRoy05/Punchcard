@@ -36,6 +36,13 @@ enum Command {
         #[arg(long)]
         tag: Option<String>,
     },
+    /// Show a notification and open the URL when it is clicked; stint runs this itself, detached
+    #[command(hide = true)]
+    Notify {
+        title: String,
+        message: String,
+        url: String,
+    },
 }
 
 fn main() -> ExitCode {
@@ -55,17 +62,23 @@ fn main() -> ExitCode {
 }
 
 fn run(command: Command) -> Result<(), TimerError> {
-    let vault = vault::vault_dir()?;
+    // `notify` needs no vault, since stint starts it detached to wait for a click.
+    let vault = vault::vault_dir;
     match command {
-        Command::Pick => picker::open(vault)?,
-        Command::Timeline { range } => timeline::open(vault, range)?,
-        Command::Toggle { note } => toggle_and_notify(&vault, &note)?,
+        Command::Pick => picker::open(vault()?)?,
+        Command::Timeline { range } => timeline::open(vault()?, range)?,
+        Command::Toggle { note } => toggle_and_notify(&vault()?, &note)?,
+        Command::Notify {
+            title,
+            message,
+            url,
+        } => notify::show_and_open_on_click(&title, &message, &url)?,
         Command::Sync => {
-            let synced = vault::sync(&vault)?;
+            let synced = vault::sync(&vault()?)?;
             print_lines(synced.iter().map(|synced| format!("stint: {synced}")))?;
         }
         Command::Tasks { tag } => {
-            let listing = vault::tasks::tasks(&vault, tag.as_deref())?;
+            let listing = vault::tasks::tasks(&vault()?, tag.as_deref())?;
             print_lines(listing.lines)?;
             for skipped in listing.skipped {
                 eprintln!("stint: {skipped}");
