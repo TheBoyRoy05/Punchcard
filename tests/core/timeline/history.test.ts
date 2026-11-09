@@ -69,7 +69,7 @@ describe("History", () => {
     const history = new History();
     history.push([{ original: first, block: second }]);
     expect(history.peek()).toEqual([{ original: second, block: first }]);
-    history.drop();
+    history.drop(1);
     expect(history.peek()).toBeUndefined();
   });
 
@@ -85,7 +85,7 @@ describe("History", () => {
     history.push([{ original: first, block: second }]);
     history.push([{ original: second, block: third }]);
     expect(history.peek()).toEqual([{ original: third, block: second }]);
-    history.drop();
+    history.drop(1);
     expect(history.peek()).toEqual([{ original: second, block: first }]);
   });
 
@@ -104,12 +104,26 @@ describe("History", () => {
     ]);
   });
 
+  it("keeps only the writes that did not land when an undo stops halfway", () => {
+    const moved = block("A.md", "09:00", "10:00");
+    const next = { ...moved, note: "B.md" };
+    const history = new History();
+    history.push([
+      { original: null, block: next },
+      { original: moved, block: null },
+    ]);
+    history.drop(1);
+    expect(history.peek()).toEqual([{ original: next, block: null }]);
+    history.drop(1);
+    expect(history.peek()).toBeUndefined();
+  });
+
   it("folds edits of one group into a single undo", () => {
     const history = new History();
     history.push([{ original: first, block: second }], 1);
     history.push([{ original: second, block: third }], 1);
     expect(history.peek()).toEqual([{ original: third, block: first }]);
-    history.drop();
+    history.drop(1);
     expect(history.peek()).toBeUndefined();
   });
 

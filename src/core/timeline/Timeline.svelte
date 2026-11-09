@@ -1,10 +1,12 @@
 <script lang="ts">
+  import ChevronLeft from "@lucide/svelte/icons/chevron-left";
+  import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import { onDestroy, tick, untrack } from "svelte";
 
   import { clip, dayWindow, editBlock, logicalDay, type Block, type ClosedSpan, type EditResult, type Minutes } from "../../wasm/core";
   import BlockPopup from "./BlockPopup.svelte";
   import { History, planChanges, sameBlock, type Change } from "./history";
-  import type { LoadedRange, TaskNote, TimelineHost } from "./host";
+  import type { LoadedRange, Range, TaskNote, TimelineHost } from "./host";
   import {
     dragSpan,
     formatClock,
@@ -23,11 +25,11 @@
   const NOW_REFRESH_MS = 30_000;
   const CLICK_SLOP_PX = 3;
   const MIN_LABEL_PX = 48;
+  // Below this width a block has no room for two edge handles and a body, so a press has one meaning instead.
+  const TINY_BLOCK_PX = 18;
   const NARROW_TRACK_PX = 480;
   const HOUR_LINES = Array.from({ length: 24 }, (_, hour) => hour);
   const HOUR_LABELS = Array.from({ length: 13 }, (_, index) => index * 2);
-
-  type Range = "day" | "week";
 
   interface Piece {
     block: Block;
@@ -71,10 +73,20 @@
     saved: Block | undefined;
   }
 
-  let { load, notes, dayStartHour, blockMinutes, blockMinMinutes, now: readNow, save, openNote }: TimelineHost = $props();
+  let {
+    load,
+    notes,
+    dayStartHour,
+    blockMinutes,
+    blockMinMinutes,
+    now: readNow,
+    save,
+    openNote,
+    initialRange = "day",
+  }: TimelineHost & { initialRange?: Range } = $props();
 
   let now = $state(untrack(() => readNow()));
-  let range = $state<Range>("day");
+  let range = $state<Range>(untrack(() => initialRange));
   let day = $state(untrack(() => logicalDay(readNow(), dayStartHour)));
   let blocks = $state<Block[]>([]);
   let rangeNotes = $state<TaskNote[]>([]);
@@ -104,7 +116,7 @@
   const title = $derived(
     range === "day"
       ? formatDay(day, dayStartHour, "full")
-      : `${formatDay(firstDay, dayStartHour, "date")} – ${formatDay(lastDay, dayStartHour, "date")}`
+      : `${formatDay(firstDay, dayStartHour, "date")} - ${formatDay(lastDay, dayStartHour, "date")}`
   );
   const nowPercent = $derived(range === "day" ? percentOf(now, dayWindow(day, dayStartHour)) : null);
   const narrow = $derived(trackWidth < NARROW_TRACK_PX);
@@ -115,14 +127,26 @@
   });
 
   // Queued, so a popup's entry flushed on a ‹ › click saves against the blocks it was typed over, not the next range's.
-  $effect(() => {
-    const [first, last] = [firstDay, lastDay];
+  $effect(() => refresh(firstDay, lastDay));
+
+  // A host awaits this before it closes, so the open popup's unsaved entry and every queued save land first.
+  // Returns the notice those saves left, "" when they all landed.
+  export async function settle(): Promise<string> {
+    notice = "";
+    popup = null;
+    await tick();
+    await queued(() => Promise.resolve());
+    return notice;
+  }
+
+  // A host calls this when the notes may have changed outside the timeline, such as when its window regains focus.
+  export function refresh(first = firstDay, last = lastDay): void {
     void queued(() => reload(first, last)).then((error) => {
       if (error !== "") {
         notice = error;
       }
     });
-  });
+  }
 
   onDestroy(stopTracking);
 
@@ -327,11 +351,9 @@
         return;
       }
 
-      // A failed write keeps the edit in history, so the user can undo it again.
+      // A failed write stays in history, so the user can undo it again.
       const { error, done } = await send(changes);
-      if (done.length === changes.length) {
-        history.drop();
-      }
+      history.drop(done.length);
       notice = error;
     });
   }
@@ -345,6 +367,9 @@
       }
       if (popup === open) {
         await placeAnchor();
+      } else if (error !== "") {
+        // A closed popup flushed its entry and has no field left to show why the save was refused.
+        notice = error;
       }
       return error;
     });
@@ -368,10 +393,11 @@
   }
 
   // Window listeners keep the drag alive wherever the pointer is released.
-  function startDrag(event: PointerEvent, piece: Piece): void {
+  // A tiny block has no handles: dragging a running one moves its start, its only movable edge, and dragging a closed one moves it.
+  function startDrag(event: PointerEvent, piece: Piece, tiny: boolean): void {
     justDragged = false;
     const edge = (event.target as HTMLElement).dataset.edge as DragMode | undefined;
-    const mode = edge ?? "move";
+    const mode = edge ?? (tiny && piece.block.span.end === null && !piece.fromBefore ? "start" : "move");
     // A block whose drag is still saving waits, since its save would overwrite a second drag's.
     const blocked = drag !== null || isLanding(piece.block) || piece.block.note === "" || (mode === "move" && piece.block.span.end === null);
     if (event.button !== 0 || blocked) {
@@ -525,7 +551,7 @@
         <button
           class="pc:cursor-pointer pc:rounded pc:border-0 pc:bg-transparent pc:px-2 pc:py-1 pc:font-ui pc:text-label pc:text-muted pc:hover:bg-hover"
           aria-label="Previous"
-          onclick={() => navigate(-1)}>‹</button
+          onclick={() => navigate(-1)}><ChevronLeft class="pc:block" size={14} /></button
         >
         <span class="pc:flex pc:overflow-hidden pc:rounded pc:border pc:border-solid pc:border-rule">
           {#each ["day", "week"] as const as option (option)}
@@ -545,7 +571,7 @@
         <button
           class="pc:cursor-pointer pc:rounded pc:border-0 pc:bg-transparent pc:px-2 pc:py-1 pc:font-ui pc:text-label pc:text-muted pc:hover:bg-hover"
           aria-label="Next"
-          onclick={() => navigate(1)}>›</button
+          onclick={() => navigate(1)}><ChevronRight class="pc:block" size={14} /></button
         >
       </nav>
     </header>
@@ -636,10 +662,18 @@
             {@const running = piece.block.span.end === null}
             {@const draft = piece.block.note === ""}
             {@const note = noteOf(piece.block.note)}
-            {@const label = range === "week" && (place.width / 100) * trackWidth >= MIN_LABEL_PX ? note.name : ""}
+            {@const pixels = (place.width / 100) * trackWidth}
+            {@const tiny = pixels < TINY_BLOCK_PX}
+            {@const label = range === "week" && pixels >= MIN_LABEL_PX ? note.name : ""}
+            <!-- Padding sits only beside a label, since a box cannot draw narrower than its padding and would run past its end. -->
+            <!-- A tiny block keeps its true width but takes presses over a wider centred area; `truncate` would clip that area. -->
             <button
               class={[
-                "pc:absolute pc:inset-y-1.5 pc:box-border pc:cursor-grab pc:truncate pc:rounded-[3px] pc:border-0 pc:p-0 pc:px-1.5 pc:text-left pc:font-ui pc:text-label pc:font-medium pc:leading-[22px] pc:whitespace-nowrap pc:text-surface pc:hover:brightness-110",
+                "pc:absolute pc:inset-y-1.5 pc:box-border pc:min-w-[2px] pc:rounded-[3px] pc:border-0 pc:p-0 pc:text-left pc:font-ui pc:text-label pc:font-medium pc:leading-[22px] pc:whitespace-nowrap pc:text-surface pc:hover:brightness-110",
+                label !== "" && "pc:truncate pc:px-1.5",
+                tiny &&
+                  "pc:before:absolute pc:before:inset-y-0 pc:before:left-1/2 pc:before:w-3 pc:before:-translate-x-1/2 pc:before:content-['']",
+                tiny && running && !piece.fromBefore ? "pc:cursor-ew-resize" : "pc:cursor-grab",
                 draft ? "pc:border pc:border-dashed pc:border-ink pc:bg-transparent" : projectColor(note.color),
                 running &&
                   "pc:rounded-r-none pc:bg-[image:repeating-linear-gradient(135deg,transparent_0_5px,rgb(0_0_0/.18)_5px_10px)]",
@@ -649,18 +683,19 @@
               ]}
               style:left="{place.left}%"
               style:width="{place.width}%"
-              title={range === "week" ? note.name : `${formatClock(piece.span.start)}–${formatClock(piece.span.end)}`}
-              aria-label={`${draft ? "New block" : note.name}, ${formatClock(piece.block.span.start)}–${running ? "running" : formatClock(piece.block.span.end ?? now)}`}
+              title={range === "week" ? note.name : `${formatClock(piece.span.start)}-${formatClock(piece.span.end)}`}
+              aria-label={`${draft ? "New block" : note.name}, ${formatClock(piece.block.span.start)}-${running ? "running" : formatClock(piece.block.span.end ?? now)}`}
               data-key={keyOf(piece.block)}
-              onpointerdown={(event) => startDrag(event, piece)}
+              onpointerdown={(event) => startDrag(event, piece, tiny)}
               onclick={(event) => clickBlock(event, piece.block)}
             >
-              {#if !draft && !piece.fromBefore}
-                <span class="pc:absolute pc:inset-y-0 pc:left-0 pc:w-1.5 pc:cursor-ew-resize" data-edge="start"></span>
+              {#if !draft && !tiny && !piece.fromBefore}
+                <!-- Above a neighbouring tiny block's wider hit area, so a press on a handle always resizes. -->
+                <span class="pc:absolute pc:inset-y-0 pc:left-0 pc:z-[1] pc:w-1.5 pc:cursor-ew-resize" data-edge="start"></span>
               {/if}
               {label}
-              {#if !draft && !running && !piece.pastEnd}
-                <span class="pc:absolute pc:inset-y-0 pc:right-0 pc:w-1.5 pc:cursor-ew-resize" data-edge="end"></span>
+              {#if !draft && !tiny && !running && !piece.pastEnd}
+                <span class="pc:absolute pc:inset-y-0 pc:right-0 pc:z-[1] pc:w-1.5 pc:cursor-ew-resize" data-edge="end"></span>
               {/if}
             </button>
           {/each}

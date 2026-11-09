@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::fmt;
 use std::fs;
 use std::io;
@@ -17,6 +18,7 @@ use punchcard_core::{
 use crate::note::{DAYS_KEY, HOURS_KEY, LIST_ITEM, Note};
 use settings::Settings;
 
+pub mod blocks;
 pub mod migrate;
 pub mod settings;
 pub mod tasks;
@@ -189,14 +191,14 @@ pub fn sync(vault: &Path) -> Result<Vec<Synced>, TimerError> {
 fn collect_notes(dir: &Path, notes: &mut Vec<Note>) -> Result<(), TimerError> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
-        if entry.file_name().to_string_lossy().starts_with(['.', '_']) {
+        if is_hidden(&entry.file_name()) {
             continue;
         }
 
         let path = entry.path();
         if entry.file_type()?.is_dir() {
             collect_notes(&path, notes)?;
-        } else if path.extension().is_some_and(|extension| extension == "md") {
+        } else if is_markdown(&path) {
             let lines = read_lines(&path)?;
             notes.extend(Note::from_lines(path, &lines));
         }
@@ -370,6 +372,15 @@ fn extra_running_message(name: &str) -> String {
     format!("{name} has more than one running block")
 }
 
+// `.obsidian`, `.trash` and `_Meta` hold the app's and the vault's own files, so nothing under them is a note.
+fn is_hidden(name: &OsStr) -> bool {
+    name.to_string_lossy().starts_with(['.', '_'])
+}
+
+fn is_markdown(path: &Path) -> bool {
+    path.extension().is_some_and(|extension| extension == "md")
+}
+
 fn read_lines(path: &Path) -> io::Result<Vec<String>> {
     Ok(fs::read_to_string(path)?
         .split('\n')
@@ -382,13 +393,16 @@ fn write_lines(path: &Path, lines: &[String]) -> io::Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use chrono::NaiveDate;
     use punchcard_core::test_support::{FIXTURE_SETTINGS, ISO_MINUTE, for_each_fixture};
     use serde::Deserialize;
 
-    use super::settings::{DAY_START_KEY, MIN_BLOCK_KEY, REJOIN_KEY, SETTINGS};
+    use super::settings::{DAY_START_KEY, MIN_BLOCK_KEY, REJOIN_KEY, SETTINGS, TIMELINE_BLOCK_KEY};
     use super::*;
+
+    // No fixture depends on it, so it is not in the shared fixture settings.
+    const TIMELINE_BLOCK_MINUTES: u32 = 30;
 
     #[derive(Deserialize)]
     struct ExpectedToggle {
@@ -398,12 +412,12 @@ mod tests {
     }
 
     // Removes the vault even when an assert panics, so a failed test leaves nothing in the temp dir.
-    pub(super) struct TempVault {
-        pub(super) path: PathBuf,
+    pub(crate) struct TempVault {
+        pub(crate) path: PathBuf,
     }
 
     impl TempVault {
-        pub(super) fn new(test: &str) -> Self {
+        pub(crate) fn new(test: &str) -> Self {
             let path = std::env::temp_dir().join(format!("stint-{test}-{}", std::process::id()));
             let vault = Self { path };
             fs::create_dir_all(vault.path.join("_Meta")).unwrap();
@@ -412,7 +426,7 @@ mod tests {
             let rejoin = FIXTURE_SETTINGS.block_rejoin_minutes;
             let min_block = FIXTURE_SETTINGS.block_min_minutes;
             let settings = format!(
-                "---\n{DAY_START_KEY}: {day_start}\n{REJOIN_KEY}: {rejoin}\n{MIN_BLOCK_KEY}: {min_block}\n---\n"
+                "---\n{DAY_START_KEY}: {day_start}\n{REJOIN_KEY}: {rejoin}\n{MIN_BLOCK_KEY}: {min_block}\n{TIMELINE_BLOCK_KEY}: {TIMELINE_BLOCK_MINUTES}\n---\n"
             );
             fs::write(vault.path.join(SETTINGS), settings).unwrap();
             vault
@@ -430,6 +444,7 @@ mod tests {
             day_start: DayStart::new(FIXTURE_SETTINGS.day_start_hour).unwrap(),
             block_rejoin_minutes: FIXTURE_SETTINGS.block_rejoin_minutes,
             block_min_minutes: FIXTURE_SETTINGS.block_min_minutes,
+            timeline_block_minutes: TIMELINE_BLOCK_MINUTES,
         }
     }
 

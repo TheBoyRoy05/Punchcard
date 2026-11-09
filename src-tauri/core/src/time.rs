@@ -1,6 +1,6 @@
-use std::ops::Range;
+use std::ops::{Range, RangeBounds};
 
-use chrono::{Datelike, NaiveDate, NaiveDateTime, Timelike};
+use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, Timelike};
 
 // Each 0 is a digit, so 26/1/2 9:5 is refused.
 const TIME_SHAPE: &str = "00/00/00 00:00";
@@ -10,13 +10,17 @@ const FIELD_WIDTH: usize = 3;
 // A two-digit year always means 20YY, where chrono's %y would read 70-99 as 19YY.
 const CENTURY: i32 = 2000;
 pub const YEARS: Range<i32> = CENTURY..CENTURY + 100;
+// Block times cross to the webview as wall-clock minutes since this moment.
+pub const EPOCH: NaiveDateTime = NaiveDate::from_ymd_opt(CENTURY, 1, 1)
+    .unwrap()
+    .and_time(NaiveTime::MIN);
 
 pub fn parse_time(text: &str) -> Option<NaiveDateTime> {
     let [year, month, day, hour, minute] = fields(text, TIME_SHAPE)?;
     date(year, month, day)?.and_hms_opt(hour, minute, 0)
 }
 
-// Every block time comes from parse_time or the wasm boundary's year check; only a logical day can step outside YEARS.
+// Every block time comes from parse_time or the serde boundary's year check; only a logical day can step outside YEARS.
 pub fn format_time(time: NaiveDateTime) -> String {
     debug_assert!(YEARS.contains(&time.year()), "{time} has no two-digit year");
     let (hour, minute) = (time.hour(), time.minute());
@@ -36,6 +40,18 @@ pub fn format_day(day: NaiveDate) -> Option<String> {
 pub fn wall_clock(now: NaiveDateTime) -> NaiveDateTime {
     let minute = now.date().and_hms_opt(now.hour(), now.minute(), 0);
     minute.expect("an hour and minute read from a time form a valid time")
+}
+
+pub fn to_minutes(time: NaiveDateTime) -> i64 {
+    (time - EPOCH).num_minutes()
+}
+
+// An i32 count keeps TimeDelta::minutes from panicking on a huge one. A heading has a two-digit year,
+// so a block time is in YEARS; only a day window's edge may reach past it.
+pub fn block_time(minutes: i64, years: impl RangeBounds<i32>) -> Option<NaiveDateTime> {
+    let minutes = i32::try_from(minutes).ok()?;
+    let time = EPOCH.checked_add_signed(TimeDelta::minutes(minutes.into()))?;
+    years.contains(&time.year()).then_some(time)
 }
 
 fn fields<const N: usize>(text: &str, shape: &str) -> Option<[u32; N]> {

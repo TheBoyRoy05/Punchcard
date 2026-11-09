@@ -6,6 +6,7 @@ use std::io::{self, Write};
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
+use stint_lib::timeline::{self, Range};
 use stint_lib::vault::{self, TimerError};
 use stint_lib::{notify, picker, toggle_and_notify};
 
@@ -20,6 +21,11 @@ struct Cli {
 enum Command {
     /// Open the ranked task picker; Enter toggles the selected task
     Pick,
+    /// Open the timeline of today or this week, to drag, add and edit blocks
+    Timeline {
+        #[arg(value_enum, default_value = "day")]
+        range: Range,
+    },
     /// Start or stop the running block of the note with this name
     Toggle { note: String },
     /// Rebuild punchcard__worked_days and punchcard__worked_hours from every note's log, reporting bad headings, extra running blocks and buried logs
@@ -52,6 +58,7 @@ fn run(command: Command) -> Result<(), TimerError> {
     let vault = vault::vault_dir()?;
     match command {
         Command::Pick => picker::open(vault)?,
+        Command::Timeline { range } => timeline::open(vault, range)?,
         Command::Toggle { note } => toggle_and_notify(&vault, &note)?,
         Command::Sync => {
             let synced = vault::sync(&vault)?;

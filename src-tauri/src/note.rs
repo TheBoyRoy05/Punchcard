@@ -86,6 +86,21 @@ impl Note {
         timed && self.scalar("status").parse().is_ok_and(Status::is_open)
     }
 
+    // Matches the vault's `formula.project`: a project note is its own project, a task belongs to its first tag link.
+    pub fn project(&self) -> &str {
+        if self
+            .list("tags")
+            .iter()
+            .any(|tag| tag_is_within(tag, PROJECT_TAG))
+        {
+            return self.name();
+        }
+
+        let link = self.list("tag_links").first().map_or("", String::as_str);
+        let target = link.trim_start_matches("[[").trim_end_matches("]]");
+        target.split('|').next().unwrap_or_default()
+    }
+
     pub fn due(&self) -> &str {
         match self.scalar("due") {
             "" => NO_DUE,

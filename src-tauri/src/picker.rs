@@ -3,12 +3,12 @@ use std::path::PathBuf;
 use chrono::Local;
 use punchcard_core::time::wall_clock;
 use serde::Serialize;
-use tauri::{State, WebviewWindowBuilder, Window, WindowEvent};
+use tauri::{State, WebviewWindowBuilder, WindowEvent};
 
 #[cfg(target_os = "macos")]
-use crate::macos::{self, clicked_away};
+use crate::macos;
 use crate::vault::{self, TimerError};
-use crate::{rank, toggle_and_notify};
+use crate::{popup, rank, toggle_and_notify};
 
 const WINDOW: &str = "picker";
 
@@ -26,7 +26,7 @@ pub fn open(vault: PathBuf) -> Result<(), TimerError> {
         .invoke_handler(tauri::generate_handler![tasks, toggle])
         .on_window_event(|window, event| {
             if let WindowEvent::Focused(false) = event {
-                on_blur(window);
+                popup::on_blur(window);
             }
         })
         .setup(|app| {
@@ -41,10 +41,10 @@ pub fn open(vault: PathBuf) -> Result<(), TimerError> {
             let window = WebviewWindowBuilder::from_config(app.handle(), config)?.build()?;
 
             #[cfg(target_os = "macos")]
-            macos::place_picker(&window)?;
+            macos::place_popup(&window)?;
             Ok(())
         })
-        .run(tauri::generate_context!())
+        .run(crate::context())
         .map_err(|error| format!("picker failed: {error}").into())
 }
 
@@ -62,22 +62,4 @@ fn tasks(vault: State<'_, Vault>) -> Result<Vec<Task>, TimerError> {
 #[tauri::command(async)]
 fn toggle(vault: State<'_, Vault>, name: String) -> Result<(), TimerError> {
     toggle_and_notify(&vault.0, &name)
-}
-
-// Closes on a click elsewhere, like choose. Focus can also leave without a click, on a Space
-// switch or when an app such as Arc grabs focus as the cursor passes over it; those refocus instead.
-fn on_blur(window: &Window) {
-    let (action, result) = if clicked_away() {
-        ("closed", window.close())
-    } else {
-        ("refocused", window.set_focus())
-    };
-    if let Err(error) = result {
-        eprintln!("stint: picker not {action}: {error}");
-    }
-}
-
-#[cfg(not(target_os = "macos"))]
-fn clicked_away() -> bool {
-    true
 }

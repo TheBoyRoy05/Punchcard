@@ -20,6 +20,10 @@ impl DayStart {
         }
     }
 
+    pub const fn hour(self) -> u32 {
+        self.0
+    }
+
     fn offset(self) -> TimeDelta {
         TimeDelta::hours(i64::from(self.0))
     }

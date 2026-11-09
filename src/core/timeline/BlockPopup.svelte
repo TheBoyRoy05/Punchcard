@@ -1,4 +1,7 @@
 <script lang="ts">
+  import ArrowUpRight from "@lucide/svelte/icons/arrow-up-right";
+  import ChevronDown from "@lucide/svelte/icons/chevron-down";
+  import X from "@lucide/svelte/icons/x";
   import { onDestroy, onMount, untrack } from "svelte";
 
   import { logicalDay, workedHours, type Block, type Minutes } from "../../wasm/core";
@@ -184,20 +187,20 @@
       onclick={() => (choosing = !choosing)}
     >
       <span class={["pc:truncate", draft && "pc:text-faint"]}>{note?.name ?? "Choose a task"}</span>
-      <span class="pc:text-faint">▾</span>
+      <ChevronDown class="pc:shrink-0 pc:text-faint" size={14} />
     </button>
     {#if !draft}
       <button
         class="pc:cursor-pointer pc:border-0 pc:bg-transparent pc:p-0 pc:font-ui pc:text-row pc:text-faint pc:hover:text-ink"
         title="Open note"
         aria-label="Open note"
-        onclick={() => openNote(latest.note)}>↗</button
+        onclick={() => openNote(latest.note)}><ArrowUpRight class="pc:block" size={14} /></button
       >
     {/if}
     <button
       class="pc:cursor-pointer pc:border-0 pc:bg-transparent pc:p-0 pc:font-ui pc:text-row pc:text-faint pc:hover:text-ink"
       aria-label="Close"
-      onclick={onClose}>✕</button
+      onclick={onClose}><X class="pc:block" size={14} /></button
     >
   </div>
 

@@ -1,18 +1,25 @@
 use std::fmt;
 
 use chrono::{NaiveDateTime, TimeDelta};
+use serde::{Deserialize, Serialize};
 
 use crate::time::{format_time, parse_time};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// A block time comes from a heading, so it must have a two-digit year.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Span {
+    #[serde(with = "crate::wire::minutes")]
     pub start: NaiveDateTime,
+    #[serde(with = "crate::wire::optional_minutes")]
     pub end: Option<NaiveDateTime>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// A ClosedSpan is a day window or a span clipped to one, so its end may reach 2100.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ClosedSpan {
+    #[serde(with = "crate::wire::window_minutes")]
     pub start: NaiveDateTime,
+    #[serde(with = "crate::wire::window_minutes")]
     pub end: NaiveDateTime,
 }
 

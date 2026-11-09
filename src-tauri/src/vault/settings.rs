@@ -10,6 +10,7 @@ pub(super) const SETTINGS: &str = "_Meta/Settings.md";
 pub(super) const DAY_START_KEY: &str = "day_start_hour";
 pub(super) const REJOIN_KEY: &str = "block_rejoin_minutes";
 pub(super) const MIN_BLOCK_KEY: &str = "block_min_minutes";
+pub(super) const TIMELINE_BLOCK_KEY: &str = "timeline_block_minutes";
 const MINUTES_IN_A_DAY: RangeInclusive<u32> = 0..=1440;
 
 #[derive(Debug)]
@@ -17,6 +18,7 @@ pub struct Settings {
     pub day_start: DayStart,
     pub block_rejoin_minutes: u32,
     pub block_min_minutes: u32,
+    pub timeline_block_minutes: u32,
 }
 
 pub fn read(vault: &Path) -> Result<Settings, TimerError> {
@@ -45,6 +47,12 @@ pub fn read(vault: &Path) -> Result<Settings, TimerError> {
         day_start: DayStart::new(day_start).expect("the setting is in DayStart::HOURS"),
         block_rejoin_minutes: setting(REJOIN_KEY, "a number of minutes", MINUTES_IN_A_DAY)?,
         block_min_minutes: setting(MIN_BLOCK_KEY, "a number of minutes", MINUTES_IN_A_DAY)?,
+        // A new block must end after its start, so it is at least a minute long.
+        timeline_block_minutes: setting(
+            TIMELINE_BLOCK_KEY,
+            "a number of minutes",
+            1..=*MINUTES_IN_A_DAY.end(),
+        )?,
     })
 }
 
@@ -75,6 +83,21 @@ mod tests {
         assert!(
             error.to_string().ends_with(
                 "has no block_rejoin_minutes that is a number of minutes from 0 to 1440"
+            )
+        );
+    }
+
+    #[test]
+    fn timeline_block_minutes_must_be_at_least_one() {
+        let vault = TempVault::new("timeline-block-zero");
+        let text = "---\nday_start_hour: 4\nblock_rejoin_minutes: 5\nblock_min_minutes: 3\ntimeline_block_minutes: 0\n---\n";
+        fs::write(vault.path.join(SETTINGS), text).unwrap();
+
+        let error = read(&vault.path).unwrap_err();
+
+        assert!(
+            error.to_string().ends_with(
+                "has no timeline_block_minutes that is a number of minutes from 1 to 1440"
             )
         );
     }

@@ -240,7 +240,7 @@ test("the popup edits the end of a block that crosses midnight", async ({ page }
   await end.fill("0300");
   await end.press("Enter");
   // A save lands before the reload, and the reload resets the end field, so the second edit waits for it.
-  await expect(blockOf(page, WRITEUP, at("10-28 19:00"))).toHaveAccessibleName("PA5 Writeup, 19:00–03:00");
+  await expect(blockOf(page, WRITEUP, at("10-28 19:00"))).toHaveAccessibleName("PA5 Writeup, 19:00-03:00");
   await end.fill("2330");
   await end.press("Enter");
 
@@ -461,11 +461,11 @@ test("an undo whose write fails stays in history and can run again", async ({ pa
 
 test("the week view has a row per day, labels wide blocks and asks for a new block's task", async ({ page }) => {
   await page.getByRole("button", { name: "week" }).click();
-  await expect(page.locator("h1")).toHaveText("2 Nov – 8 Nov");
+  await expect(page.locator("h1")).toHaveText("2 Nov - 8 Nov");
   await page.getByRole("button", { name: "Previous" }).click();
-  await expect(page.locator("h1")).toHaveText("26 Oct – 1 Nov");
+  await expect(page.locator("h1")).toHaveText("26 Oct - 1 Nov");
   await expect(page.locator("[data-track]")).toHaveCount(7);
-  // PA5 Writeup's 02:30–05:00 block on the 30th crosses the day start, so all 2h 30m count toward the 29th.
+  // PA5 Writeup's 02:30-05:00 block on the 30th crosses the day start, so all 2h 30m count toward the 29th.
   await expect(page.locator(`[data-row="26-10-29"] [data-hours]`)).toHaveText("2h 50m");
   await expect(page.locator(`[data-row="26-10-30"] [data-hours]`)).toHaveText("0h 00m");
   await expect(page.locator("[data-total]")).toHaveText("18h 55m");
@@ -487,7 +487,7 @@ test("the week view has a row per day, labels wide blocks and asks for a new blo
 
 test("a block of a note missing from the picker list draws with that note's name and color", async ({ page }) => {
   const block = blockOf(page, COMPLETED.path, at("11-02 10:00"));
-  await expect(block).toHaveAccessibleName("Archive Old Spans, 10:00–10:30");
+  await expect(block).toHaveAccessibleName("Archive Old Spans, 10:00-10:30");
   await expect(block).toHaveClass(/pc:bg-project-4/);
 
   await block.click();
@@ -496,6 +496,43 @@ test("a block of a note missing from the picker list draws with that note's name
   const options = page.getByRole("listbox", { name: "Tasks" }).getByRole("option");
   await expect(options).toHaveCount(NOTES.length);
   await expect(options.filter({ hasText: COMPLETED.name })).toHaveCount(0);
+});
+
+test("a tiny block draws at its true width, has no edge handles, and its body moves it", async ({ page }) => {
+  const tiny = blockOf(page, COMPLETED.path, at("11-02 10:40"));
+  const box = await boxOf(tiny);
+  expect(box.width).toBeLessThan(18);
+  expect(box.x).toBeCloseTo(await xAt(page, COMPLETED.path, at("11-02 10:40")), 0);
+  expect(box.x + box.width).toBeCloseTo(await xAt(page, COMPLETED.path, at("11-02 10:45")), 0);
+  await expect(tiny.locator("[data-edge]")).toHaveCount(0);
+
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(page.locator("[data-popup]")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("[data-popup]")).toHaveCount(0);
+
+  // Pressed beside the block, inside its wider hit area.
+  await drag(page, box.x + box.width + 3, box.y + box.height / 2, await pixelsFor(page, COMPLETED.path, 10));
+
+  await expect.poll(() => saves(page)).toEqual([
+    { original: saved(COMPLETED.path, "11-02 10:40", "11-02 10:45"), block: saved(COMPLETED.path, "11-02 10:50", "11-02 10:55") },
+  ]);
+});
+
+test("dragging a tiny running block moves its start", async ({ page }) => {
+  // Narrow enough that Design Timeline Look's 44 running minutes draw under 18 px.
+  await page.setViewportSize({ width: 760, height: 800 });
+  const running = blockOf(page, DESIGN, at("11-02 17:25"));
+  const box = await boxOf(running);
+  expect(box.width).toBeLessThan(18);
+  expect(box.x + box.width).toBeCloseTo(await xAt(page, DESIGN, NOW), 0);
+  await expect(running.locator("[data-edge]")).toHaveCount(0);
+
+  await drag(page, box.x + box.width / 2, box.y + box.height / 2, -(await pixelsFor(page, DESIGN, 10)));
+
+  await expect.poll(() => saves(page)).toEqual([
+    { original: saved(DESIGN, "11-02 17:25", null), block: saved(DESIGN, "11-02 17:15", null) },
+  ]);
 });
 
 function blockOf(page: Page, note: string, start: Minutes): Locator {

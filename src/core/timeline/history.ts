@@ -35,8 +35,17 @@ export class History {
       .reverse();
   }
 
-  drop(): void {
-    this.#entries.pop();
+  // Forgets the first `count` writes peek returned, once they land, so a retry sends only the rest.
+  drop(count: number): void {
+    const last = this.#entries.at(-1);
+    if (last === undefined) {
+      return;
+    }
+
+    last.changes.splice(last.changes.length - count, count);
+    if (last.changes.length === 0) {
+      this.#entries.pop();
+    }
   }
 }
 

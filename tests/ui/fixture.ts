@@ -53,8 +53,10 @@ export const BLOCKS: Block[] = [
   block("Tasks/Port Task Timer.md", "11-01 19:30", "11-01 23:55"),
   block("Tasks/Serialize Hold.md", "10-29 10:00", "10-29 10:20"),
   block("Tasks/PA5 Writeup.md", "10-30 02:30", "10-30 05:00"),
-  // Inside Port Task Timer's 09:30–11:45, so the day's union hours stay the same.
+  // Inside Port Task Timer's 09:30-11:45, so the day's union hours stay the same.
   block(COMPLETED.path, "11-02 10:00", "11-02 10:30"),
+  // A few pixels wide, so it draws without edge handles. Also inside Port Task Timer's span.
+  block(COMPLETED.path, "11-02 10:40", "11-02 10:45"),
 ];
 
 function block(note: string, start: string, end: string | null, entry = ""): Block {

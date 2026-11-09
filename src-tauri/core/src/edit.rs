@@ -1,11 +1,13 @@
 use std::fmt;
 
 use chrono::NaiveDateTime;
+use serde::{Deserialize, Serialize};
 
-use crate::Block;
 use crate::span::{Span, shorter_than};
+use crate::{Block, Log, section_headings};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(from = "crate::wire::FlatBlock", into = "crate::wire::FlatBlock")]
 pub struct NoteBlock {
     pub note: String,
     pub block: Block,
@@ -19,6 +21,8 @@ pub enum EditError {
     EndInFuture,
     RunningStartsAfterNow,
     Overlaps(Span),
+    HeadingInEntry,
+    SecondRunning,
 }
 
 impl fmt::Display for EditError {
@@ -37,6 +41,11 @@ impl fmt::Display for EditError {
                 write!(formatter, "A running block must start before now.")
             }
             Self::Overlaps(span) => write!(formatter, "It overlaps the block {span}."),
+            Self::HeadingInEntry => write!(
+                formatter,
+                "A log entry cannot hold a section or block heading line."
+            ),
+            Self::SecondRunning => write!(formatter, "A note can have only one running block."),
         }
     }
 }
@@ -57,13 +66,12 @@ pub fn edit_block(
         })
         .ok_or(EditError::Gone)?;
 
+    check_block(&next.block)?;
     let Span { start, end } = next.block.span;
-    // Older blocks can be zero-length or shorter than the minimum, and they must stay editable while their span is left alone.
-    let span_changed = next.block.span != original.block.span;
     if let Some(end) = end
-        && span_changed
+        && next.block.span != original.block.span
     {
-        if end <= start {
+        if end == start {
             return Err(EditError::EndNotAfterStart);
         }
         if shorter_than(start, end, block_min_minutes) {
@@ -123,6 +131,31 @@ fn move_into(others: Vec<NoteBlock>, moved: NoteBlock) -> Vec<NoteBlock> {
     };
     kept.push(merged);
     kept
+}
+
+// The rules one block keeps whatever else the log holds, so a host's save holds every write to them too.
+// Older blocks can be zero-length, and an undo or a task move writes them back as they were, so only an inverted span is refused.
+pub fn check_block(next: &Block) -> Result<(), EditError> {
+    let Span { start, end } = next.span;
+    if end.is_some_and(|end| end < start) {
+        return Err(EditError::EndNotAfterStart);
+    }
+
+    // A section heading would end the log, and a block heading would split the entry into another block.
+    let lines: Vec<String> = next.entry.split('\n').map(String::from).collect();
+    let block_heading = lines.iter().any(|line| Block::parse(line).is_some());
+    if block_heading || !section_headings(&lines).is_empty() {
+        return Err(EditError::HeadingInEntry);
+    }
+    Ok(())
+}
+
+// edit_block needs no call: two running blocks always overlap, so it already refuses or merges them.
+pub fn check_running(log: &Log) -> Result<(), EditError> {
+    if log.running_blocks().nth(1).is_some() {
+        return Err(EditError::SecondRunning);
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -434,11 +467,76 @@ mod tests {
                 EditError::Overlaps(noon.block.span),
                 "It overlaps the block 26/10/30 12:00 - 26/10/30 13:00.",
             ),
+            (
+                EditError::HeadingInEntry,
+                "A log entry cannot hold a section or block heading line.",
+            ),
+            (
+                EditError::SecondRunning,
+                "A note can have only one running block.",
+            ),
         ];
 
         for (error, message) in messages {
             assert_eq!(error.to_string(), message);
         }
+    }
+
+    #[test]
+    fn edit_refuses_an_entry_line_that_would_end_the_log_or_start_a_block() {
+        let (morning, _) = morning_and_noon();
+
+        for entry in [
+            "Done.\n### Next",
+            "# Title",
+            "#### 26/10/30 11:00 -",
+            "#### 26/10/30 11:00 - 26/10/30 12:00 ",
+        ] {
+            let next = block("A", "09:00", Some("10:00"), entry);
+            let edited = edit(std::slice::from_ref(&morning), &morning, next);
+            assert_eq!(edited, Err(EditError::HeadingInEntry), "{entry}");
+        }
+    }
+
+    #[test]
+    fn edit_keeps_heading_like_lines_that_stay_entry_text() {
+        let (morning, _) = morning_and_noon();
+
+        for entry in ["#### not a time", "####no space", "```\n### fenced\n```"] {
+            let next = block("A", "09:00", Some("10:00"), entry);
+            let edited = edit(std::slice::from_ref(&morning), &morning, next.clone());
+            assert_eq!(edited, Ok(vec![next]), "{entry}");
+        }
+    }
+
+    #[test]
+    fn check_block_refuses_an_end_before_the_start_and_keeps_a_zero_length_block() {
+        let inverted = closed("A", "09:00", "08:00").block;
+        let zero = closed("A", "09:00", "09:00").block;
+
+        assert_eq!(check_block(&inverted), Err(EditError::EndNotAfterStart));
+        assert_eq!(check_block(&zero), Ok(()));
+    }
+
+    #[test]
+    fn edit_keeps_an_old_zero_length_block_whose_span_is_left_alone() {
+        let zero = closed("A", "09:00", "09:00");
+        let next = block("A", "09:00", Some("09:00"), "Renamed.");
+
+        let edited = edit(std::slice::from_ref(&zero), &zero, next.clone());
+
+        assert_eq!(edited, Ok(vec![next]));
+    }
+
+    #[test]
+    fn check_running_allows_one_running_block_and_refuses_a_second() {
+        let one = NoteBody::parse(
+            "### Log\n#### 26/10/30 12:00 -\n#### 26/10/30 09:00 - 26/10/30 10:00\n",
+        );
+        let two = NoteBody::parse("### Log\n#### 26/10/30 12:00 -\n#### 26/10/30 09:00 -\n");
+
+        assert_eq!(check_running(&one.log), Ok(()));
+        assert_eq!(check_running(&two.log), Err(EditError::SecondRunning));
     }
 
     #[test]

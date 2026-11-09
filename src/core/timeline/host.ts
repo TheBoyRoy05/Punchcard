@@ -1,5 +1,7 @@
 import type { Block, Minutes } from "../../wasm/core";
 
+export type Range = "day" | "week";
+
 export type SaveResult = { ok: true } | { ok: false; error: string };
 
 // `color` indexes the project palette, so a host keeps one project on one color across views.

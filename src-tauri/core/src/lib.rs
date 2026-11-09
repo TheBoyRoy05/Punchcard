@@ -4,6 +4,7 @@ pub mod span;
 #[cfg(any(test, feature = "test-support"))]
 pub mod test_support;
 pub mod time;
+mod wire;
 
 use std::iter;
 use std::ops::{Range, RangeInclusive};

@@ -7,7 +7,7 @@ pub fn clicked_away() -> bool {
     NSEvent::pressedMouseButtons() != 0
 }
 
-pub fn place_picker(window: &WebviewWindow) -> tauri::Result<()> {
+pub fn place_popup(window: &WebviewWindow) -> tauri::Result<()> {
     let mtm = MainThreadMarker::new().expect("Tauri runs setup on the main thread");
     let ns_window = window.ns_window()?;
     // SAFETY: Tauri returns a live NSWindow pointer, and mtm proves this is the main thread AppKit requires.
@@ -27,7 +27,7 @@ pub fn place_picker(window: &WebviewWindow) -> tauri::Result<()> {
             && (frame.origin.y..frame.origin.y + frame.size.height).contains(&mouse.y)
     });
     let Some(screen) = cursor_screen else {
-        eprintln!("stint: no screen holds the cursor at {mouse:?}, picker stays centered");
+        eprintln!("stint: no screen holds the cursor at {mouse:?}, window stays centered");
         return Ok(());
     };
 
