@@ -60,7 +60,7 @@ const target = document.getElementById("timeline") ?? document.body;
 // eslint's type checker reads no .svelte file, so it sees mount's exports as `any` unless typed here.
 const timeline = mount(Timeline, {
   target,
-  props: { ...host, initialRange: opening.range, focusStart: true },
+  props: { ...host, initialRange: opening.range },
 }) as { refresh(): void; settle(): Promise<string> };
 const appWindow = getCurrentWindow();
 // Only the first refused close stays open, so a save that keeps failing never keeps the window open for good.

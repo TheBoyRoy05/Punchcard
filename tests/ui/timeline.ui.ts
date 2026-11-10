@@ -553,7 +553,7 @@ test("a task row's play button starts the task, and its stop button stops the ru
   expect((await state(page)).toggles).toEqual([PORT, DESIGN]);
 });
 
-test("a task started from a day its new block is not on shows as running in the Start task list", async ({ page }) => {
+test("a task started from a day its new block is not on shows as running in the task picker", async ({ page }) => {
   await page.getByRole("button", { name: "Previous" }).click();
   await expect(page.locator("h1")).toHaveText("Sunday 1 November");
   await page.getByLabel("Task to start or stop").fill("review");
@@ -563,7 +563,7 @@ test("a task started from a day its new block is not on shows as running in the 
   await expect(page.getByRole("option").filter({ hasText: "Review Gate" })).toContainText("Running");
 });
 
-test("a repeated or composing Enter in the Start task list chooses nothing", async ({ page }) => {
+test("a repeated or composing Enter in the task picker chooses nothing", async ({ page }) => {
   const search = page.getByLabel("Task to start or stop");
   await search.fill("review");
 
@@ -574,12 +574,12 @@ test("a repeated or composing Enter in the Start task list chooses nothing", asy
   expect((await state(page)).toggles).toEqual([]);
 });
 
-test("week rows are days, so they have no play button, and the Start task row stays", async ({ page }) => {
+test("the week view only shows time, so it has no play buttons and no task picker", async ({ page }) => {
   await page.getByRole("button", { name: "week" }).click();
 
   await expect(page.locator("[data-track]")).toHaveCount(7);
   await expect(page.locator("[data-toggle]")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Start task", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Task to start or stop")).toHaveCount(0);
 });
 
 test("choosing a task in the day's picker toggles it, reloads the blocks and clears the search", async ({ page }) => {

@@ -89,7 +89,7 @@ test("the day's task search has focus when the window opens, and Esc in it close
   await expect.poll(() => commands(page)).toContain("plugin:window|destroy");
 });
 
-test("choosing a task under Start task toggles it by path and reloads the range", async ({ page }) => {
+test("choosing a task in the task picker toggles it by path and reloads the range", async ({ page }) => {
   await page.getByLabel("Task to start or stop").fill("serialize");
   await page.keyboard.press("Enter");
 

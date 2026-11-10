@@ -87,8 +87,7 @@
     toggle,
     openNote,
     initialRange = "day",
-    focusStart = false,
-  }: TimelineHost & { initialRange?: Range; focusStart?: boolean } = $props();
+  }: TimelineHost & { initialRange?: Range } = $props();
 
   let now = $state(untrack(() => readNow()));
   let range = $state<Range>(untrack(() => initialRange));
@@ -105,9 +104,6 @@
   let popup = $state<Popup | null>(null);
   let anchor = $state<HTMLElement | null>(null);
   let frame: HTMLElement | undefined = $state();
-  // The week view's Start task list; the day view's stays open.
-  let starting = $state(untrack(() => focusStart && initialRange === "week"));
-  let startButton: HTMLButtonElement | undefined = $state();
   let dayPicks = $state(0);
   let openings = 0;
   let loads = 0;
@@ -434,11 +430,6 @@
     });
   }
 
-  function pickToToggle(note: TaskNote): void {
-    closeStart();
-    startOrStop(note);
-  }
-
   // The day view's picker stays open, so a pick starts it over with an empty search.
   function pickInDay(note: TaskNote): void {
     // A pick during a toggle is ignored, so it keeps its search too.
@@ -447,11 +438,6 @@
     }
     dayPicks += 1;
     startOrStop(note);
-  }
-
-  function closeStart(): void {
-    starting = false;
-    startButton?.focus();
   }
 
   async function openPopup(block: Block, picking: boolean): Promise<void> {
@@ -599,12 +585,6 @@
 
     if (event.key === "Escape" && popup !== null) {
       popup = null;
-      event.preventDefault();
-      return;
-    }
-
-    if (event.key === "Escape" && starting && range === "week") {
-      closeStart();
       event.preventDefault();
       return;
     }
@@ -803,30 +783,15 @@
       {/each}
 
       <!-- Day rows are indented under their project, and the picker lines up with their play buttons. -->
-      <div class={["pc:col-span-2 pc:pt-2", range === "day" && "pc:pl-2 pc:@max-[700px]:pl-0"]}>
-        {#if range === "day"}
+      {#if range === "day"}
+        <div class="pc:col-span-2 pc:pt-2 pc:pl-2 pc:@max-[700px]:pl-0">
           {#key dayPicks}
             <div class="pc:h-64">
               <NotePicker notes={pickerNotes} current="" label="Task to start or stop" onPick={pickInDay} />
             </div>
           {/key}
-        {:else}
-        <button
-          bind:this={startButton}
-          class={[
-            "pc:flex pc:cursor-pointer pc:items-center pc:gap-2 pc:rounded pc:border-0 pc:px-2 pc:py-1 pc:font-ui pc:text-row pc:text-muted pc:hover:bg-hover pc:hover:text-ink",
-            starting ? "pc:bg-hover" : "pc:bg-transparent",
-          ]}
-          aria-expanded={starting}
-          onclick={() => (starting = !starting)}><Play class="pc:block" size={12} />Start task</button
-        >
-        {#if starting}
-          <div class="pc:h-64 pc:pt-2">
-            <NotePicker notes={pickerNotes} current="" label="Task to start or stop" onPick={pickToToggle} onClose={closeStart} />
-          </div>
-        {/if}
-        {/if}
-      </div>
+        </div>
+      {/if}
 
       <!-- Inside the grid, so the popup clamps to the timeline's content edges, not the section's padding. -->
       {#if popup !== null && anchor !== null}
