@@ -184,6 +184,36 @@ test("double-clicking empty space adds a block and opens its popup", async ({ pa
   await expect(page.locator("[data-popup] [data-field=end]")).toHaveValue("1335");
 });
 
+test("undo works while the day's empty task search has focus", async ({ page }) => {
+  await blockOf(page, SERIALIZE, at("11-02 15:00")).click();
+  const end = page.locator("[data-popup] [data-field=end]");
+  await end.fill("1630");
+  await end.press("Enter");
+  await expect.poll(async () => (await saves(page)).length).toBe(1);
+  await page.keyboard.press("Escape");
+
+  const search = page.getByLabel("Task to start or stop");
+  await search.focus();
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+z" : "Control+z");
+
+  await expect.poll(async () => (await saves(page)).length).toBe(2);
+});
+
+test("emptying a closed block's end reopens it as running from the same start", async ({ page }) => {
+  await blockOf(page, SERIALIZE, at("11-02 15:00")).click();
+  const end = page.locator("[data-popup] [data-field=end]");
+
+  await end.fill("");
+  await end.press("Enter");
+
+  await expect.poll(() => saves(page)).toEqual([
+    {
+      original: saved(SERIALIZE, "11-02 15:00", "11-02 17:05", "Hold now keyed by domain."),
+      block: saved(SERIALIZE, "11-02 15:00", null, "Hold now keyed by domain."),
+    },
+  ]);
+});
+
 test("the popup refuses an invalid end in place and saves a valid one", async ({ page }) => {
   await blockOf(page, SERIALIZE, at("11-02 15:00")).click();
   const end = page.locator("[data-popup] [data-field=end]");
@@ -397,6 +427,18 @@ test("typing in one log entry saves after a pause and undoes as one edit", async
   });
 });
 
+test("a press outside the popup closes it, and a press inside keeps it", async ({ page }) => {
+  await blockOf(page, SERIALIZE, at("11-02 15:00")).click();
+  const popup = page.locator("[data-popup]");
+  await expect(popup).toBeVisible();
+
+  await popup.locator("[data-field=end]").click();
+  await expect(popup).toBeVisible();
+
+  await page.locator("h1").click();
+  await expect(popup).toHaveCount(0);
+});
+
 test("Delete asks to confirm before it removes the block", async ({ page }) => {
   await blockOf(page, PORT, at("11-02 13:00")).click();
   await page.getByRole("button", { name: "Delete block" }).click();
@@ -493,7 +535,7 @@ test("a block of a note missing from the picker list draws with that note's name
   await block.click();
   await page.locator("[data-popup] [data-task]").click();
 
-  const options = page.getByRole("listbox", { name: "Tasks" }).getByRole("option");
+  const options = page.locator("[data-popup]").getByRole("option");
   await expect(options).toHaveCount(NOTES.length);
   await expect(options.filter({ hasText: COMPLETED.name })).toHaveCount(0);
 });
@@ -514,19 +556,14 @@ test("a task row's play button starts the task, and its stop button stops the ru
 test("a task started from a day its new block is not on shows as running in the Start task list", async ({ page }) => {
   await page.getByRole("button", { name: "Previous" }).click();
   await expect(page.locator("h1")).toHaveText("Sunday 1 November");
-  const start = page.getByRole("button", { name: "Start task", exact: true });
-  await start.click();
   await page.getByLabel("Task to start or stop").fill("review");
   await page.keyboard.press("Enter");
   await expect.poll(async () => (await state(page)).toggles).toEqual(["Tasks/Review Gate.md"]);
-
-  await start.click();
 
   await expect(page.getByRole("option").filter({ hasText: "Review Gate" })).toContainText("Running");
 });
 
 test("a repeated or composing Enter in the Start task list chooses nothing", async ({ page }) => {
-  await page.getByRole("button", { name: "Start task", exact: true }).click();
   const search = page.getByLabel("Task to start or stop");
   await search.fill("review");
 
@@ -545,21 +582,17 @@ test("week rows are days, so they have no play button, and the Start task row st
   await expect(page.getByRole("button", { name: "Start task", exact: true })).toBeVisible();
 });
 
-test("choosing a task under Start task toggles it, reloads the blocks and closes the list", async ({ page }) => {
-  const start = page.getByRole("button", { name: "Start task", exact: true });
-  await start.click();
+test("choosing a task in the day's picker toggles it, reloads the blocks and clears the search", async ({ page }) => {
   const search = page.getByLabel("Task to start or stop");
-  await expect(search).toBeFocused();
 
   await search.fill("serialize");
   await search.press("Enter");
 
   await expect(page.getByRole("button", { name: "Stop Serialize Hold per Domain", exact: true })).toBeVisible();
-  await expect(search).toHaveCount(0);
-  await expect(start).toBeFocused();
+  await expect(page.getByLabel("Task to start or stop")).toHaveValue("");
+  await expect(page.getByLabel("Task to start or stop")).toBeFocused();
   expect((await state(page)).toggles).toEqual([SERIALIZE]);
 
-  await start.click();
   const option = page.getByRole("option").filter({ hasText: "Serialize Hold per Domain" });
   await expect(option).toContainText("Running");
 });

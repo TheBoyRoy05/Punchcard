@@ -58,7 +58,6 @@ test("a click elsewhere right after typing a log entry saves it before the windo
 });
 
 test("Esc twice right after typing a log entry saves it before the window closes", async ({ page }) => {
-  await page.getByLabel("Task to start or stop").press("Escape");
   await typeEntry(page);
 
   await page.keyboard.press("Escape");
@@ -81,27 +80,13 @@ test("a click elsewhere after a refused save keeps the window open to show why, 
   expect(await commands(page)).toContain("plugin:window|destroy");
 });
 
-test("the Start task search has focus when the window opens, and Esc closes the list before the window", async ({ page }) => {
+test("the day's task search has focus when the window opens, and Esc in it closes the window", async ({ page }) => {
   const search = page.getByLabel("Task to start or stop");
   await expect(search).toBeFocused();
 
   await page.keyboard.press("Escape");
 
-  await expect(search).toHaveCount(0);
-  expect(await commands(page)).not.toContain("plugin:window|close");
-
-  await page.keyboard.press("Escape");
-
   await expect.poll(() => commands(page)).toContain("plugin:window|destroy");
-});
-
-test("Esc closes the Start task list before the window even when focus has left its search", async ({ page }) => {
-  await page.locator("h1").click();
-
-  await page.keyboard.press("Escape");
-
-  await expect(page.getByLabel("Task to start or stop")).toHaveCount(0);
-  expect(await commands(page)).not.toContain("plugin:window|close");
 });
 
 test("choosing a task under Start task toggles it by path and reloads the range", async ({ page }) => {
@@ -114,20 +99,20 @@ test("choosing a task under Start task toggles it by path and reloads the range"
   expect(calls.find((call) => call.cmd === "toggle")?.args?.note).toBe("Tasks/Serialize Hold.md");
 });
 
-test("the window height fits its content, with the Start task list open or closed", async ({ page }) => {
+test("the window height fits its content, taller in the day view, whose task picker stays open", async ({ page }) => {
   await expect.poll(() => lastHeight(page)).toBe(await contentHeight(page));
-  const open = await contentHeight(page);
+  const day = await contentHeight(page);
 
-  await page.getByLabel("Task to start or stop").press("Escape");
+  await page.getByRole("button", { name: "Week" }).click();
 
   await expect.poll(() => lastHeight(page)).toBe(await contentHeight(page));
-  expect(await lastHeight(page)).toBeLessThan(open);
+  expect(await lastHeight(page)).toBeLessThan(day);
 });
 
 test("the window grows to fit a block popup that reaches past the rows", async ({ page }) => {
-  await page.getByLabel("Task to start or stop").press("Escape");
-
-  await page.getByRole("button", { name: "Port Task Timer to Rust Stint, 13:00-14:43" }).click();
+  await page.getByRole("button", { name: "Week" }).click();
+  await page.getByRole("button", { name: "Previous" }).click();
+  await page.getByRole("button", { name: "Port Task Timer to Rust Stint, 19:30-23:55" }).click();
 
   const popupBottom = await page.locator("[data-popup]").evaluate((card) => {
     const top = document.getElementById("timeline")?.getBoundingClientRect().top ?? 0;

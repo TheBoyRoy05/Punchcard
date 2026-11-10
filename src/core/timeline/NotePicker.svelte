@@ -9,7 +9,8 @@
     current: string;
     label: string;
     onPick: (note: TaskNote) => void;
-    onClose: () => void;
+    // Without it, Esc is left to the page, as when the picker is always shown.
+    onClose?: () => void;
   }
 
   let { notes, current, label, onPick, onClose }: Props = $props();
@@ -25,7 +26,7 @@
 
   function choose(note: TaskNote | undefined): void {
     if (note === undefined || note.path === current) {
-      onClose();
+      onClose?.();
     } else {
       onPick(note);
     }
@@ -43,7 +44,7 @@
         choose(shown[selected]);
       }
       event.preventDefault();
-    } else if (event.key === "Escape") {
+    } else if (event.key === "Escape" && onClose !== undefined) {
       onClose();
       event.stopPropagation();
       event.preventDefault();
@@ -56,6 +57,7 @@
 >
   <input
     bind:this={input}
+    data-search
     bind:value={query}
     oninput={() => (selected = 0)}
     onkeydown={keydown}

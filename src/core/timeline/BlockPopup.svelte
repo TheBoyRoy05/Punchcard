@@ -50,7 +50,6 @@
   let latest = untrack(() => block);
 
   const draft = $derived(block.note === "");
-  const running = $derived(block.span.end === null);
   const hours = $derived(workedHours([{ start: block.span.start, end: block.span.end ?? now }]));
   // A save re-points `block` while the user may be typing a time, so each field resets only when its own value moved.
   const shownStart = $derived(block.span.start);
@@ -113,10 +112,11 @@
   // The core checks the span itself, so the popup only reads the text.
   function commitTimes(field: "start" | "end"): void {
     const start = parseClock(startText, logicalDay(latest.span.start, dayStartHour), dayStartHour);
-    const keepsRunning = running && endText.trim() === "";
+    // An empty end means the block is still running, so emptying it reopens a closed block.
+    const endless = endText.trim() === "";
     const extent = { start: latest.span.start, end: latest.span.end ?? now };
-    const end = keepsRunning || start === null ? null : parseEnd(endText, start, extent);
-    if (start === null || (end === null && !keepsRunning)) {
+    const end = endless || start === null ? null : parseEnd(endText, start, extent);
+    if (start === null || (end === null && !endless)) {
       error = "Write the time as HHmm, such as 0930.";
       errorField = start === null ? "start" : "end";
       return;
@@ -237,7 +237,7 @@
       <input
         bind:value={endText}
         disabled={draft}
-        placeholder={running ? "Running" : ""}
+        placeholder="Running"
         onblur={() => commitTimes("end")}
         onkeydown={(event) => enterCommits(event, "end")}
         class={[

@@ -105,8 +105,10 @@
   let popup = $state<Popup | null>(null);
   let anchor = $state<HTMLElement | null>(null);
   let frame: HTMLElement | undefined = $state();
-  let starting = $state(untrack(() => focusStart));
+  // The week view's Start task list; the day view's stays open.
+  let starting = $state(untrack(() => focusStart && initialRange === "week"));
   let startButton: HTMLButtonElement | undefined = $state();
+  let dayPicks = $state(0);
   let openings = 0;
   let loads = 0;
   let justDragged = false;
@@ -437,6 +439,16 @@
     startOrStop(note);
   }
 
+  // The day view's picker stays open, so a pick starts it over with an empty search.
+  function pickInDay(note: TaskNote): void {
+    // A pick during a toggle is ignored, so it keeps its search too.
+    if (toggling) {
+      return;
+    }
+    dayPicks += 1;
+    startOrStop(note);
+  }
+
   function closeStart(): void {
     starting = false;
     startButton?.focus();
@@ -532,6 +544,14 @@
   }
 
   // Only a pointer click (detail > 0) can end a drag, so Enter after a drag still opens the block.
+  // A press on another block is left to that block, which opens its own popup or starts a drag.
+  function closeOnPressOutside(event: PointerEvent): void {
+    const target = event.target instanceof Element ? event.target : null;
+    if (popup !== null && target?.closest("[data-popup], [data-key]") == null) {
+      popup = null;
+    }
+  }
+
   function clickBlock(event: MouseEvent, block: Block): void {
     const endsDrag = justDragged && event.detail > 0;
     justDragged = false;
@@ -583,14 +603,16 @@
       return;
     }
 
-    if (event.key === "Escape" && starting) {
+    if (event.key === "Escape" && starting && range === "week") {
       closeStart();
       event.preventDefault();
       return;
     }
 
     // Ctrl+Z on a Mac and Cmd+Z elsewhere mean nothing else, so either one undoes.
-    const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+    // An empty task search has nothing of its own to undo, and the day view's search usually holds focus.
+    const emptySearch = event.target instanceof HTMLInputElement && "search" in event.target.dataset && event.target.value === "";
+    const typing = !emptySearch && (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement);
     const command = event.metaKey || event.ctrlKey;
     if (command && !event.shiftKey && event.key.toLowerCase() === "z" && !typing) {
       event.preventDefault();
@@ -603,7 +625,7 @@
   }
 </script>
 
-<svelte:window onkeydown={keydown} />
+<svelte:window onkeydown={keydown} onpointerdown={closeOnPressOutside} />
 
 <div class="pc:@container pc:font-ui pc:text-row pc:text-ink">
   <section bind:this={frame} class="pc:relative pc:mx-auto pc:w-full pc:max-w-[1100px] pc:box-border pc:p-4">
@@ -780,8 +802,15 @@
         </div>
       {/each}
 
-      <!-- Day rows are indented under their project, and the button's icon lines up with theirs. -->
+      <!-- Day rows are indented under their project, and the picker lines up with their play buttons. -->
       <div class={["pc:col-span-2 pc:pt-2", range === "day" && "pc:pl-2 pc:@max-[700px]:pl-0"]}>
+        {#if range === "day"}
+          {#key dayPicks}
+            <div class="pc:h-64">
+              <NotePicker notes={pickerNotes} current="" label="Task to start or stop" onPick={pickInDay} />
+            </div>
+          {/key}
+        {:else}
         <button
           bind:this={startButton}
           class={[
@@ -795,6 +824,7 @@
           <div class="pc:h-64 pc:pt-2">
             <NotePicker notes={pickerNotes} current="" label="Task to start or stop" onPick={pickToToggle} onClose={closeStart} />
           </div>
+        {/if}
         {/if}
       </div>
 
