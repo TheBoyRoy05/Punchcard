@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { Block } from "../../src/wasm/core";
 import { BLOCK_MIN_MINUTES, BLOCK_MINUTES, BLOCKS, DAY_START_HOUR, NOTES } from "./fixture";
 
-// The real timeline page, with Tauri's IPC replaced by a recorder that answers the way stint does.
+// The real timeline page, with Tauri's IPC replaced by a recorder that answers the way punch does.
 const PAGE = "/timeline.html";
 const SAVE_MS = 300;
 const CLOSE_REQUESTED = "tauri://close-requested";
@@ -23,9 +23,9 @@ interface Call {
 
 interface FakeTauri {
   calls: Call[];
-  // What stint does on a click elsewhere: Tauri hands the close to the page's close-requested listener.
+  // What punch does on a click elsewhere: Tauri hands the close to the page's close-requested listener.
   requestClose(): Promise<unknown>;
-  // The message every save rejects with, the way stint refuses one; null lets saves land.
+  // The message every save rejects with, the way punch refuses one; null lets saves land.
   refusal: string | null;
 }
 
@@ -197,5 +197,5 @@ function fakeTauri({ opening, blocks, saveMs, closeRequested }: { opening: unkno
       }
     },
   };
-  Object.assign(window, { stint: opening, fakeTauri: fake, __TAURI_INTERNALS__: internals });
+  Object.assign(window, { punch: opening, fakeTauri: fake, __TAURI_INTERNALS__: internals });
 }

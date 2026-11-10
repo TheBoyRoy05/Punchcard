@@ -7,7 +7,7 @@ tags:
 Install with:
 ```sh
 # install
-brew install stint
+brew install punch
 ```
 ~~~
 ```

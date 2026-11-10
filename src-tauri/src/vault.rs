@@ -417,7 +417,7 @@ fn write_lines(path: &Path, lines: &[String]) -> io::Result<()> {
     let path = &fs::canonicalize(path)?;
     let folder = path.parent().unwrap_or(Path::new("."));
     let mut temp = tempfile::Builder::new()
-        .prefix(".stint-")
+        .prefix(".punch-")
         .tempfile_in(folder)?;
     temp.write_all(lines.join("\n").as_bytes())?;
     temp.as_file().sync_all()?;
@@ -455,7 +455,7 @@ pub(crate) mod tests {
 
     impl TempVault {
         pub(crate) fn new(test: &str) -> Self {
-            let path = std::env::temp_dir().join(format!("stint-{test}-{}", std::process::id()));
+            let path = std::env::temp_dir().join(format!("punch-{test}-{}", std::process::id()));
             let vault = Self { path };
             fs::create_dir_all(vault.path.join("_Meta")).unwrap();
 
@@ -760,7 +760,7 @@ pub(crate) mod tests {
         assert!(
             names
                 .iter()
-                .all(|name| !name.to_string_lossy().starts_with(".stint-"))
+                .all(|name| !name.to_string_lossy().starts_with(".punch-"))
         );
     }
 

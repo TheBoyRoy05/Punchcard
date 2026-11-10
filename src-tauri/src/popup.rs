@@ -12,7 +12,7 @@ pub fn on_blur(window: &Window) {
         ("refocused", window.set_focus())
     };
     if let Err(error) = result {
-        eprintln!("stint: {} not {action}: {error}", window.label());
+        eprintln!("punch: {} not {action}: {error}", window.label());
     }
 }
 

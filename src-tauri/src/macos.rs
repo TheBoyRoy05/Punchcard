@@ -27,7 +27,7 @@ pub fn place_popup(window: &WebviewWindow) -> tauri::Result<()> {
             && (frame.origin.y..frame.origin.y + frame.size.height).contains(&mouse.y)
     });
     let Some(screen) = cursor_screen else {
-        eprintln!("stint: no screen holds the cursor at {mouse:?}, window stays centered");
+        eprintln!("punch: no screen holds the cursor at {mouse:?}, window stays centered");
         return Ok(());
     };
 
@@ -47,7 +47,7 @@ pub fn fit(window: &WebviewWindow, height: impl FnOnce(f64) -> f64) -> tauri::Re
     // SAFETY: Tauri returns a live NSWindow pointer, and the marker above proves this is the main thread AppKit requires.
     let ns_window = unsafe { &*ns_window.cast::<NSWindow>() };
     let Some(screen) = ns_window.screen() else {
-        eprintln!("stint: the timeline is on no screen, so it keeps its size");
+        eprintln!("punch: the timeline is on no screen, so it keeps its size");
         return Ok(());
     };
 

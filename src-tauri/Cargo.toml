@@ -1,19 +1,19 @@
 [package]
-name = "stint"
+name = "punch"
 version = "0.0.1"
 description = "Punchcard timer and timeline"
 authors = ["Issac Roy"]
 license = "MIT"
 repository = "https://github.com/TheBoyRoy05/Punchcard"
 edition = "2024"
-default-run = "stint"
+default-run = "punch"
 rust-version = "1.90"
 
 [workspace]
 members = ["core", "wasm"]
 resolver = "3"
 
-# Size over speed for the wasm build only; stint keeps the plain release profile.
+# Size over speed for the wasm build only; punch keeps the plain release profile.
 [profile.wasm]
 inherits = "release"
 opt-level = "z"
@@ -22,7 +22,7 @@ codegen-units = 1
 panic = "abort"
 
 [lib]
-name = "stint_lib"
+name = "punch_lib"
 crate-type = ["rlib"]
 
 [build-dependencies]

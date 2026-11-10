@@ -6,9 +6,9 @@ use std::io::{self, Write};
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
-use stint_lib::timeline::{self, Range};
-use stint_lib::vault::{self, TimerError};
-use stint_lib::{notify, toggle_and_notify};
+use punch_lib::timeline::{self, Range};
+use punch_lib::vault::{self, TimerError};
+use punch_lib::{notify, toggle_and_notify};
 
 #[derive(Parser)]
 #[command(version, about)]
@@ -34,7 +34,7 @@ enum Command {
         #[arg(long)]
         tag: Option<String>,
     },
-    /// Show a notification and open the URL when it is clicked; stint runs this itself, detached
+    /// Show a notification and open the URL when it is clicked; punch runs this itself, detached
     #[command(hide = true)]
     Notify {
         title: String,
@@ -50,7 +50,7 @@ fn main() -> ExitCode {
     match run(command) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("stint: {error}");
+            eprintln!("punch: {error}");
             if changes_timer {
                 notify::show("Timer not changed", &error.to_string(), None);
             }
@@ -60,7 +60,7 @@ fn main() -> ExitCode {
 }
 
 fn run(command: Command) -> Result<(), TimerError> {
-    // `notify` needs no vault, since stint starts it detached to wait for a click.
+    // `notify` needs no vault, since punch starts it detached to wait for a click.
     let vault = vault::vault_dir;
     match command {
         Command::Timeline { range } => timeline::open(vault()?, range)?,
@@ -75,13 +75,13 @@ fn run(command: Command) -> Result<(), TimerError> {
         } => notify::show_and_open_on_click(&title, &message, &url)?,
         Command::Sync => {
             let synced = vault::sync(&vault()?)?;
-            print_lines(synced.iter().map(|synced| format!("stint: {synced}")))?;
+            print_lines(synced.iter().map(|synced| format!("punch: {synced}")))?;
         }
         Command::Tasks { tag } => {
             let listing = vault::tasks::tasks(&vault()?, tag.as_deref())?;
             print_lines(listing.lines)?;
             for skipped in listing.skipped {
-                eprintln!("stint: {skipped}");
+                eprintln!("punch: {skipped}");
             }
         }
     }

@@ -31,27 +31,27 @@ pub enum Range {
 
 struct Vault(PathBuf);
 
-// Opening, StintLoadedRange and StintNote are the same-named types in src/app/stint.ts, and a test pins their JSON.
+// Opening, PunchLoadedRange and PunchNote are the same-named types in src/app/punch.ts, and a test pins their JSON.
 // What the page needs before its first load, handed over in an init script so the window needs no command beyond load, save, toggle and fit.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Opening {
     range: Range,
-    notes: Vec<StintNote>,
+    notes: Vec<PunchNote>,
     day_start_hour: u32,
     block_minutes: u32,
     block_min_minutes: u32,
 }
 
 #[derive(Debug, Serialize)]
-struct StintLoadedRange {
+struct PunchLoadedRange {
     blocks: Vec<NoteBlock>,
-    notes: Vec<StintNote>,
+    notes: Vec<PunchNote>,
 }
 
 // `color` hashes the project name, so a project keeps one color in every range and every run.
 #[derive(Debug, PartialEq, Serialize)]
-struct StintNote {
+struct PunchNote {
     name: String,
     path: String,
     project: String,
@@ -63,7 +63,7 @@ struct StintNote {
 pub fn open(vault: PathBuf, range: Range) -> Result<(), TimerError> {
     let opening =
         serde_json::to_string(&opening(&vault, range)?).map_err(|error| error.to_string())?;
-    let script = format!("window.stint = {opening};");
+    let script = format!("window.punch = {opening};");
 
     tauri::Builder::default()
         .manage(Vault(vault))
@@ -73,7 +73,7 @@ pub fn open(vault: PathBuf, range: Range) -> Result<(), TimerError> {
                 if !NOTE_OPENED.swap(false, Ordering::Relaxed) {
                     popup::on_blur(window);
                 } else if let Err(error) = window.close() {
-                    eprintln!("stint: {} not closed: {error}", window.label());
+                    eprintln!("punch: {} not closed: {error}", window.label());
                 }
             }
         })
@@ -107,7 +107,7 @@ fn opening(vault: &Path, range: Range) -> Result<Opening, TimerError> {
     let ranked = rank::ranked(vault::notes(vault)?, wall_clock(Local::now().naive_local()));
     Ok(Opening {
         range,
-        notes: ranked.iter().map(StintNote::from_note).collect(),
+        notes: ranked.iter().map(PunchNote::from_note).collect(),
         day_start_hour: settings.day_start.hour(),
         block_minutes: settings.timeline_block_minutes,
         block_min_minutes: settings.block_min_minutes,
@@ -119,14 +119,14 @@ fn navigate(url: &Url, dev_url: Option<&Url>) -> bool {
     if url.as_str().starts_with(NOTE_URL) {
         match open::that(url.as_str()) {
             Ok(()) => NOTE_OPENED.store(true, Ordering::Relaxed),
-            Err(error) => eprintln!("stint: {url} not opened: {error}"),
+            Err(error) => eprintln!("punch: {url} not opened: {error}"),
         }
         return false;
     }
 
     let own = is_app_page(url) || dev_url.is_some_and(|dev| dev.origin() == url.origin());
     if !own {
-        eprintln!("stint: {url} not opened: the timeline shows only its own pages");
+        eprintln!("punch: {url} not opened: the timeline shows only its own pages");
     }
     own
 }
@@ -146,7 +146,7 @@ fn load(
     vault: State<'_, Vault>,
     first_day: String,
     last_day: String,
-) -> Result<StintLoadedRange, TimerError> {
+) -> Result<PunchLoadedRange, TimerError> {
     load_range(&vault.0, &first_day, &last_day)
 }
 
@@ -177,7 +177,7 @@ fn fit_window(window: WebviewWindow, height: f64) -> tauri::Result<()> {
     let main = window.clone();
     window.run_on_main_thread(move || {
         if let Err(error) = macos::fit(&main, |available| capped_height(height, available)) {
-            eprintln!("stint: window not resized: {error}");
+            eprintln!("punch: window not resized: {error}");
         }
     })
 }
@@ -205,15 +205,15 @@ fn load_range(
     vault: &Path,
     first_day: &str,
     last_day: &str,
-) -> Result<StintLoadedRange, TimerError> {
+) -> Result<PunchLoadedRange, TimerError> {
     let touching = blocks::blocks_in(vault, logical_day(first_day)?, logical_day(last_day)?)?;
 
-    let mut loaded = StintLoadedRange {
+    let mut loaded = PunchLoadedRange {
         blocks: Vec::new(),
         notes: Vec::new(),
     };
     for (note, blocks) in touching {
-        let task = StintNote::from_note(&note);
+        let task = PunchNote::from_note(&note);
         let blocks = blocks.into_iter().map(|block| NoteBlock {
             note: task.path.clone(),
             block,
@@ -257,7 +257,7 @@ fn logical_day(text: &str) -> Result<NaiveDate, TimerError> {
     parse_day(text).ok_or_else(|| format!("Not a logical day: {text}").into())
 }
 
-impl StintNote {
+impl PunchNote {
     fn from_note(note: &Note) -> Self {
         let project = note.project().to_string();
         Self {
@@ -295,7 +295,7 @@ mod tests {
         fs::write(path, text).unwrap();
     }
 
-    fn projects(loaded: &StintLoadedRange) -> Vec<(&str, &str)> {
+    fn projects(loaded: &PunchLoadedRange) -> Vec<(&str, &str)> {
         let notes = loaded.notes.iter();
         let mut projects: Vec<_> = notes
             .map(|note| (note.name.as_str(), note.project.as_str()))
@@ -431,10 +431,10 @@ mod tests {
         assert!(!allowed("tauri://example.com/timeline.html"));
     }
 
-    // tests/app/stint.test.ts types the same file as src/app/stint.ts, so a field renamed on one side fails a test.
+    // tests/app/punch.test.ts types the same file as src/app/punch.ts, so a field renamed on one side fails a test.
     #[test]
-    fn the_page_reads_the_json_pinned_in_the_stint_fixture() {
-        let note = || StintNote {
+    fn the_page_reads_the_json_pinned_in_the_punch_fixture() {
+        let note = || PunchNote {
             name: "Port".to_string(),
             path: "/Vault/Tasks/Port.md".to_string(),
             project: "Punchcard".to_string(),
@@ -459,12 +459,12 @@ mod tests {
             block_minutes: 30,
             block_min_minutes: 3,
         };
-        let loaded = StintLoadedRange {
+        let loaded = PunchLoadedRange {
             blocks: vec![block],
             notes: vec![note()],
         };
 
-        let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("../tests/fixtures/stint.json");
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("../tests/fixtures/punch.json");
         let expected: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(fixture).unwrap()).unwrap();
         assert_eq!(

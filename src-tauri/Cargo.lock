@@ -2558,6 +2558,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "punch"
+version = "0.0.1"
+dependencies = [
+ "chrono",
+ "clap",
+ "notify-rust",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "open",
+ "percent-encoding",
+ "punchcard-core",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tempfile",
+]
+
+[[package]]
 name = "punchcard-core"
 version = "0.0.1"
 dependencies = [
@@ -3124,26 +3144,6 @@ name = "static_vcruntime"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff7589a1859b09232522bb9edf076ca7fcf14ded96685d3fa629db73023ffbb7"
-
-[[package]]
-name = "stint"
-version = "0.0.1"
-dependencies = [
- "chrono",
- "clap",
- "notify-rust",
- "objc2",
- "objc2-app-kit",
- "objc2-foundation",
- "open",
- "percent-encoding",
- "punchcard-core",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tempfile",
-]
 
 [[package]]
 name = "string_cache"

@@ -12,7 +12,7 @@ pub mod vault;
 pub fn toggle_and_notify(vault: &Path, note: &Path) -> Result<note::Note, vault::TimerError> {
     let (toggle, toggled) = vault::toggle(vault, note)?;
     let name = toggled.name();
-    println!("stint: {toggle} {name}");
+    println!("punch: {toggle} {name}");
     notify::show(&toggle.to_string(), name, Some(&toggled.url()));
     Ok(toggled)
 }

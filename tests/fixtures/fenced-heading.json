@@ -3,7 +3,7 @@
     {
       "start": "2026-10-29T10:00",
       "end": "2026-10-29T11:00",
-      "entry": "Install with:\n```sh\n# install\nbrew install stint\n```\n~~~\n```\n### Not a section, still inside the tilde fence.\n~~~"
+      "entry": "Install with:\n```sh\n# install\nbrew install punch\n```\n~~~\n```\n### Not a section, still inside the tilde fence.\n~~~"
     }
   ],
   "bad_headings": [],

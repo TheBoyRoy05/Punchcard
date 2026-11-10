@@ -1,6 +1,6 @@
 # Punchcard
 
-Punchcard tracks time on Obsidian notes. Each stretch of work is a block in the note's `### Log`, and `stint`, a small desktop app, draws those blocks on a timeline where you start, stop, drag and edit them.
+Punchcard tracks time on Obsidian notes. Each stretch of work is a block in the note's `### Log`, and `punch`, a small desktop app, draws those blocks on a timeline where you start, stop, drag and edit them.
 
 The day view shows one row per note, with a task picker to start or stop a task:
 
@@ -18,16 +18,16 @@ Punchcard needs Rust, Node.js and `wasm-pack`:
 cargo install wasm-pack --version 0.15.1 --locked
 ```
 
-Then build and install `stint`:
+Then build and install `punch`:
 
 ```sh
 npm install
-npm run build && cargo install --path src-tauri --locked --features tauri/custom-protocol --bin stint
+npm run build && cargo install --path src-tauri --locked --features tauri/custom-protocol --bin punch
 ```
 
 ## Set up a vault
 
-`stint` reads the vault at `$VAULT`. Without `VAULT` set, it reads `$WORK/Vault`, taking `WORK` from `~/.config/machine.env`.
+`punch` reads the vault at `$VAULT`. Without `VAULT` set, it reads `$WORK/Vault`, taking `WORK` from `~/.config/machine.env`.
 
 The vault needs a `_Meta/Settings.md` whose frontmatter sets these keys:
 
@@ -50,12 +50,12 @@ A note is a task when it is tagged `#Task` or `#Project` and its `status` is `No
 ## Use
 
 ```sh
-stint timeline        # today
-stint timeline week   # this week
-stint toggle "Note name"
+punch timeline        # today
+punch timeline week   # this week
+punch toggle "Note name"
 ```
 
-`stint toggle` starts the note's block, or stops it when it is running. Each block is a heading under `### Log`, and an empty end means the block is still running:
+`punch toggle` starts the note's block, or stops it when it is running. Each block is a heading under `### Log`, and an empty end means the block is still running:
 
 ```markdown
 ### Log
@@ -64,11 +64,11 @@ stint toggle "Note name"
 What I did in this block.
 ```
 
-`stint sync` rebuilds `punchcard__worked_days` and `punchcard__worked_hours` in every note's frontmatter from its log, and reports malformed headings.
+`punch sync` rebuilds `punchcard__worked_days` and `punchcard__worked_hours` in every note's frontmatter from its log, and reports malformed headings.
 
 ## Build from source
 
-The block rules live once, in Rust (`src-tauri/core`). `stint` links them natively, and the JavaScript side loads them as WebAssembly. `wasm-pack` adds the `wasm32-unknown-unknown` target through rustup, fetches `wasm-opt`, and fetches the `wasm-bindgen` CLI version that `src-tauri/Cargo.lock` names. `npm run build` and `npm test` rebuild the wasm first.
+The block rules live once, in Rust (`src-tauri/core`). `punch` links them natively, and the JavaScript side loads them as WebAssembly. `wasm-pack` adds the `wasm32-unknown-unknown` target through rustup, fetches `wasm-opt`, and fetches the `wasm-bindgen` CLI version that `src-tauri/Cargo.lock` names. `npm run build` and `npm test` rebuild the wasm first.
 
 To try the timeline against a copy of a vault:
 
