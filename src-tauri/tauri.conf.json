@@ -43,6 +43,7 @@
     "security": {
       "csp": {
         "default-src": "'self'",
+        "script-src": "'self' 'wasm-unsafe-eval'",
         "connect-src": "ipc: http://ipc.localhost"
       }
     }
