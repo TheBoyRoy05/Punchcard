@@ -1,7 +1,7 @@
 [package]
 name = "stint"
 version = "0.0.1"
-description = "Punchcard timer, picker and timeline"
+description = "Punchcard timer and timeline"
 authors = ["Issac Roy"]
 license = "MIT"
 repository = "https://github.com/TheBoyRoy05/Punchcard"
@@ -26,12 +26,12 @@ name = "stint_lib"
 crate-type = ["rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.7.4" }
+tauri-build = { version = "2.7.4", features = [] }
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "2.12.5" }
+tauri = { version = "2.12.5", features = [] }
 clap = { version = "4.6.7", features = ["derive"] }
 chrono = "0.4.45"
 percent-encoding = "2.3.2"

@@ -6,14 +6,16 @@ import { dayWindow, formatSpan, overlaps, type Block } from "../../src/wasm/core
 import { BLOCK_MIN_MINUTES, BLOCK_MINUTES, BLOCKS, COMPLETED, DAY_START_HOUR, NOTES, NOW, type SavedBlock } from "./fixture";
 
 const store = [...BLOCKS];
-window.punchcard = { saves: [], opened: [], refused: null, saveMs: 0 };
+window.punchcard = { saves: [], opened: [], refused: null, saveMs: 0, toggles: [] };
 
-// Like the Tauri host, a save is refused unless the note still holds the original heading.
+// Like the Tauri host, a save is refused unless the note still holds the original heading, and a loaded note's
+// `running` reads its whole log.
 const host: TimelineHost = {
   load: (firstDay, lastDay) => {
     const range = { start: dayWindow(firstDay, DAY_START_HOUR).start, end: dayWindow(lastDay, DAY_START_HOUR).end };
     const blocks = store.filter((block) => overlaps(block.span, range));
-    const notes = [...NOTES, COMPLETED].filter((note) => blocks.some((block) => block.note === note.path));
+    const touched = [...NOTES, COMPLETED].filter((note) => blocks.some((block) => block.note === note.path));
+    const notes = touched.map((note) => ({ ...note, running: runningBlock(note.path) !== -1 }));
     return Promise.resolve({ blocks, notes });
   },
   notes: NOTES,
@@ -41,10 +43,25 @@ const host: TimelineHost = {
     }
     return { ok: true };
   },
+  toggle: (path) => {
+    window.punchcard.toggles.push(path);
+    const index = runningBlock(path);
+    const running = store[index];
+    if (running === undefined) {
+      store.push({ note: path, span: { start: NOW, end: null }, entry: "" });
+    } else {
+      store[index] = { ...running, span: { ...running.span, end: NOW } };
+    }
+    return Promise.resolve({ ok: true, running: running === undefined });
+  },
   openNote: (path) => window.punchcard.opened.push(path),
 };
 
 mount(Timeline, { target: document.getElementById("timeline") ?? document.body, props: host });
+
+function runningBlock(path: string): number {
+  return store.findIndex((block) => block.note === path && block.span.end === null);
+}
 
 function sameHeading(a: Block, b: Block): boolean {
   return a.note === b.note && a.span.start === b.span.start && a.span.end === b.span.end;

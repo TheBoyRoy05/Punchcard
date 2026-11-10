@@ -205,7 +205,15 @@
   </div>
 
   {#if choosing}
-    <NotePicker {notes} current={block.note} onPick={(note) => void pick(note)} onClose={() => (choosing = false)} />
+    <div class="pc:absolute pc:inset-x-3 pc:top-10 pc:bottom-3 pc:z-20">
+      <NotePicker
+        {notes}
+        current={block.note}
+        label="Move block to task"
+        onPick={(note) => void pick(note)}
+        onClose={() => (choosing = false)}
+      />
+    </div>
   {/if}
 
   <div class="pc:grid pc:grid-cols-2 pc:gap-2 pc:pb-2">

@@ -5,13 +5,15 @@ use chrono::{Local, NaiveDate};
 use punchcard_core::edit::NoteBlock;
 use punchcard_core::time::{parse_day, wall_clock};
 use serde::Serialize;
-use tauri::{State, Url, WebviewWindowBuilder, WindowEvent};
+#[cfg(not(target_os = "macos"))]
+use tauri::LogicalSize;
+use tauri::{State, Url, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 
 #[cfg(target_os = "macos")]
 use crate::macos;
 use crate::note::Note;
 use crate::vault::{self, TimerError, blocks, settings};
-use crate::{popup, rank};
+use crate::{popup, rank, toggle_and_notify};
 
 const WINDOW: &str = "timeline";
 // The start of every Note::url, and the only link the window hands to another app.
@@ -30,7 +32,7 @@ pub enum Range {
 struct Vault(PathBuf);
 
 // Opening, StintLoadedRange and StintNote are the same-named types in src/app/stint.ts, and a test pins their JSON.
-// What the page needs before its first load, handed over in an init script so the window needs no command beyond load and save.
+// What the page needs before its first load, handed over in an init script so the window needs no command beyond load, save, toggle and fit.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Opening {
@@ -65,7 +67,7 @@ pub fn open(vault: PathBuf, range: Range) -> Result<(), TimerError> {
 
     tauri::Builder::default()
         .manage(Vault(vault))
-        .invoke_handler(tauri::generate_handler![load, save])
+        .invoke_handler(tauri::generate_handler![load, save, toggle, fit])
         .on_window_event(|window, event| {
             if let WindowEvent::Focused(false) = event {
                 if !NOTE_OPENED.swap(false, Ordering::Relaxed) {
@@ -96,7 +98,7 @@ pub fn open(vault: PathBuf, range: Range) -> Result<(), TimerError> {
             macos::place_popup(&window)?;
             Ok(())
         })
-        .run(crate::context())
+        .run(tauri::generate_context!())
         .map_err(|error| format!("timeline failed: {error}").into())
 }
 
@@ -155,6 +157,48 @@ fn save(
     block: Option<NoteBlock>,
 ) -> Result<(), TimerError> {
     save_note_block(&vault.0, original, block)
+}
+
+// Returns whether the note is running after the toggle.
+#[tauri::command(async)]
+fn toggle(vault: State<'_, Vault>, note: PathBuf) -> Result<bool, TimerError> {
+    Ok(toggle_and_notify(&vault.0, &note)?.log.running())
+}
+
+// `height` is the page's content height in logical pixels.
+#[tauri::command]
+fn fit(window: WebviewWindow, height: f64) -> Result<(), TimerError> {
+    fit_window(window, height).map_err(|error| format!("window not resized: {error}").into())
+}
+
+// AppKit takes window frames only on the main thread.
+#[cfg(target_os = "macos")]
+fn fit_window(window: WebviewWindow, height: f64) -> tauri::Result<()> {
+    let main = window.clone();
+    window.run_on_main_thread(move || {
+        if let Err(error) = macos::fit(&main, |available| capped_height(height, available)) {
+            eprintln!("stint: window not resized: {error}");
+        }
+    })
+}
+
+#[cfg(not(target_os = "macos"))]
+fn fit_window(window: WebviewWindow, height: f64) -> tauri::Result<()> {
+    let width = window
+        .inner_size()?
+        .to_logical::<f64>(window.scale_factor()?)
+        .width;
+    let available = window.current_monitor()?.map_or(f64::INFINITY, |monitor| {
+        let area = monitor.work_area().size;
+        area.to_logical::<f64>(monitor.scale_factor()).height
+    });
+    window.set_size(LogicalSize::new(width, capped_height(height, available)))
+}
+
+// Past this share of the screen the rows scroll instead, so the window never covers the whole screen.
+// The page sends its own height, so a zero or negative one still leaves a window to see.
+fn capped_height(height: f64, available: f64) -> f64 {
+    height.min(available * 0.8).max(1.0)
 }
 
 fn load_range(
@@ -427,6 +471,12 @@ mod tests {
             serde_json::json!({ "opening": opening, "loaded": loaded }),
             expected
         );
+    }
+
+    #[test]
+    fn the_window_fits_its_content_up_to_80_percent_of_the_screen() {
+        assert_eq!(capped_height(300.0, 1000.0), 300.0);
+        assert_eq!(capped_height(900.0, 1000.0), 800.0);
     }
 
     #[test]

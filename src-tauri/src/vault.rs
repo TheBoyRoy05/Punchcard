@@ -15,7 +15,7 @@ use punchcard_core::{
     Block, LOG_HEADING, Log, entry_lines, has_buried_log, insert_block, log_blocks, log_heading,
 };
 
-use crate::note::{DAYS_KEY, HOURS_KEY, LIST_ITEM, Note};
+use crate::note::{DAYS_KEY, HOURS_KEY, LIST_ITEM, Note, note_name};
 use settings::Settings;
 
 pub mod blocks;
@@ -51,7 +51,7 @@ impl fmt::Display for TimerError {
 
 impl std::error::Error for TimerError {}
 
-// Tauri commands send errors to the picker window as plain messages.
+// Tauri commands send errors to the timeline window as plain messages.
 impl serde::Serialize for TimerError {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_str(&self.0)
@@ -131,21 +131,32 @@ pub fn notes(vault: &Path) -> Result<Vec<Note>, TimerError> {
     Ok(notes)
 }
 
-pub fn toggle(vault: &Path, name: &str) -> Result<(Toggle, Note), TimerError> {
-    let settings = settings::read(vault)?;
+pub fn note_named(vault: &Path, name: &str) -> Result<PathBuf, TimerError> {
     let notes = notes(vault)?;
     let matches: Vec<&Note> = notes.iter().filter(|note| note.name() == name).collect();
     let [note] = matches.as_slice() else {
         return Err(TimerError(format!("{} notes named {name}", matches.len())));
     };
+    Ok(note.path.clone())
+}
 
-    let mut lines = read_lines(&note.path)?;
+// The file is read and written at the path that was checked, but the note keeps the path it was given, so its url
+// matches the one a vault scan builds.
+pub fn toggle(vault: &Path, path: &Path) -> Result<(Toggle, Note), TimerError> {
+    let name = note_name(path);
+    let resolved = note_in_vault(vault, path).ok_or_else(|| not_a_note(path))?;
+    let settings = settings::read(vault)?;
+    let mut lines = read_lines(&resolved)?;
+    if Note::from_lines(path.to_path_buf(), &lines).is_none() {
+        return Err(not_a_note(path));
+    }
+
     let now = wall_clock(Local::now().naive_local());
     let toggle = toggle_block(&mut lines, now, &settings, name)?;
     rebuild_derived(&mut lines, settings.day_start, name)?;
-    write_lines(&note.path, &lines)?;
+    write_lines(&resolved, &lines)?;
 
-    let toggled = Note::from_lines(note.path.clone(), &lines).ok_or_else(|| unclosed(name))?;
+    let toggled = Note::from_lines(path.to_path_buf(), &lines).ok_or_else(|| unclosed(name))?;
     Ok((toggle, toggled))
 }
 
@@ -347,6 +358,18 @@ fn list_items(lines: &[String], key_line: usize, end: usize) -> Range<usize> {
         .take_while(|line| line.starts_with(LIST_ITEM))
         .count();
     first..first + count
+}
+
+// A path from the webview must resolve, through any symlink, to a file that collect_notes reads as a note.
+fn note_in_vault(vault: &Path, path: &Path) -> Option<PathBuf> {
+    let resolved = path.canonicalize().ok()?;
+    let relative = resolved.strip_prefix(vault.canonicalize().ok()?).ok()?;
+    let hidden = relative.iter().any(is_hidden);
+    (!hidden && is_markdown(relative)).then_some(resolved)
+}
+
+fn not_a_note(path: &Path) -> TimerError {
+    TimerError(format!("{} is not a note in the vault", path.display()))
 }
 
 fn unclosed(name: &str) -> TimerError {
@@ -646,6 +669,76 @@ pub(crate) mod tests {
         let (toggle, _) = toggled("---\n---\n### Log\n#### 26/11/01 11:00 - 26/11/01 11:42");
 
         assert_eq!(toggle, Toggle::Started);
+    }
+
+    #[test]
+    fn toggle_starts_the_note_at_a_path_and_keeps_that_path() {
+        let vault = TempVault::new("toggle-path");
+        let note = vault.path.join("Tasks/Port.md");
+        fs::create_dir_all(note.parent().unwrap()).unwrap();
+        fs::write(&note, "---\n---\n").unwrap();
+
+        let (toggle, toggled) = toggle(&vault.path, &note).unwrap();
+
+        assert_eq!(toggle, Toggle::Started);
+        assert_eq!(toggled.path, note);
+        assert!(toggled.log.running());
+    }
+
+    #[test]
+    fn toggle_refuses_a_path_that_is_not_a_note_in_the_vault() {
+        let vault = TempVault::new("toggle-outside");
+        let outside = TempVault::new("toggle-outside-other");
+        let stray = outside.path.join("Port.md");
+        let plain = vault.path.join("Plain.md");
+        let meta = vault.path.join("_Meta/Port.md");
+        for path in [&stray, &plain, &meta] {
+            let text = if path == &plain {
+                "no frontmatter\n"
+            } else {
+                "---\n---\n"
+            };
+            fs::write(path, text).unwrap();
+        }
+
+        for path in [&stray, &plain, &meta] {
+            let error = toggle(&vault.path, path).unwrap_err();
+
+            assert!(
+                error.to_string().ends_with("is not a note in the vault"),
+                "{error}"
+            );
+        }
+        assert_eq!(fs::read_to_string(&stray).unwrap(), "---\n---\n");
+        assert_eq!(fs::read_to_string(&plain).unwrap(), "no frontmatter\n");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn toggle_refuses_a_symlink_that_leads_out_of_the_vault() {
+        let vault = TempVault::new("toggle-symlink");
+        let outside = TempVault::new("toggle-symlink-other");
+        let target = outside.path.join("Port.md");
+        fs::write(&target, "---\n---\n").unwrap();
+        let link = vault.path.join("Port.md");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+
+        let error = toggle(&vault.path, &link).unwrap_err();
+
+        assert!(error.to_string().ends_with("is not a note in the vault"));
+        assert_eq!(fs::read_to_string(&target).unwrap(), "---\n---\n");
+    }
+
+    #[test]
+    fn note_named_refuses_a_name_two_notes_share() {
+        let vault = TempVault::new("note-named");
+        fs::create_dir_all(vault.path.join("Tasks")).unwrap();
+        fs::write(vault.path.join("Port.md"), "---\n---\n").unwrap();
+        fs::write(vault.path.join("Tasks/Port.md"), "---\n---\n").unwrap();
+
+        let error = note_named(&vault.path, "Port").unwrap_err();
+
+        assert_eq!(error.to_string(), "2 notes named Port");
     }
 
     #[test]

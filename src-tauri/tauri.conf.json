@@ -12,27 +12,13 @@
   "app": {
     "windows": [
       {
-        "label": "picker",
-        "create": false,
-        "title": "Punchcard",
-        "url": "picker.html",
-        "width": 520,
-        "height": 360,
-        "resizable": false,
-        "decorations": false,
-        "alwaysOnTop": true,
-        "visibleOnAllWorkspaces": true,
-        "center": true,
-        "focus": true
-      },
-      {
         "label": "timeline",
         "create": false,
         "title": "Punchcard",
         "url": "timeline.html",
         "width": 800,
         "height": 600,
-        "resizable": true,
+        "resizable": false,
         "decorations": false,
         "alwaysOnTop": true,
         "visibleOnAllWorkspaces": true,

@@ -414,7 +414,7 @@ test("Esc closes the popup, and the note links open the note", async ({ page }) 
   await page.keyboard.press("Escape");
   await expect(page.locator("[data-popup]")).toHaveCount(0);
 
-  await page.locator(`[data-row="${SERIALIZE}"] button`).click();
+  await page.getByRole("button", { name: "Serialize Hold per Domain", exact: true }).click();
 
   expect((await state(page)).opened).toEqual([PORT, SERIALIZE]);
 });
@@ -432,7 +432,7 @@ test("the popup takes focus on open and gives it back to its block on close", as
 
 test("a popup closed while focus is elsewhere leaves that focus alone", async ({ page }) => {
   await blockOf(page, PORT, at("11-02 13:00")).click();
-  const label = page.locator(`[data-row="${SERIALIZE}"] button`);
+  const label = page.getByRole("button", { name: "Serialize Hold per Domain", exact: true });
   await label.click();
   await expect(label).toBeFocused();
 
@@ -496,6 +496,72 @@ test("a block of a note missing from the picker list draws with that note's name
   const options = page.getByRole("listbox", { name: "Tasks" }).getByRole("option");
   await expect(options).toHaveCount(NOTES.length);
   await expect(options.filter({ hasText: COMPLETED.name })).toHaveCount(0);
+});
+
+// The harness clock stands still, so a block started at now has no width to draw, and its row's button shows the start landed.
+test("a task row's play button starts the task, and its stop button stops the running block", async ({ page }) => {
+  await page.getByRole("button", { name: "Start Port Task Timer to Rust Stint", exact: true }).click();
+
+  await expect(page.getByRole("button", { name: "Stop Port Task Timer to Rust Stint", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Stop Design Timeline Look", exact: true }).click();
+
+  await expect(blockOf(page, DESIGN, at("11-02 17:25"))).toHaveAccessibleName("Design Timeline Look, 17:25-18:09");
+  await expect(page.getByRole("button", { name: "Start Design Timeline Look", exact: true })).toBeVisible();
+  expect((await state(page)).toggles).toEqual([PORT, DESIGN]);
+});
+
+test("a task started from a day its new block is not on shows as running in the Start task list", async ({ page }) => {
+  await page.getByRole("button", { name: "Previous" }).click();
+  await expect(page.locator("h1")).toHaveText("Sunday 1 November");
+  const start = page.getByRole("button", { name: "Start task", exact: true });
+  await start.click();
+  await page.getByLabel("Task to start or stop").fill("review");
+  await page.keyboard.press("Enter");
+  await expect.poll(async () => (await state(page)).toggles).toEqual(["Tasks/Review Gate.md"]);
+
+  await start.click();
+
+  await expect(page.getByRole("option").filter({ hasText: "Review Gate" })).toContainText("Running");
+});
+
+test("a repeated or composing Enter in the Start task list chooses nothing", async ({ page }) => {
+  await page.getByRole("button", { name: "Start task", exact: true }).click();
+  const search = page.getByLabel("Task to start or stop");
+  await search.fill("review");
+
+  await search.dispatchEvent("keydown", { key: "Enter", repeat: true });
+  await search.dispatchEvent("keydown", { key: "Enter", isComposing: true });
+
+  await expect(search).toBeVisible();
+  expect((await state(page)).toggles).toEqual([]);
+});
+
+test("week rows are days, so they have no play button, and the Start task row stays", async ({ page }) => {
+  await page.getByRole("button", { name: "week" }).click();
+
+  await expect(page.locator("[data-track]")).toHaveCount(7);
+  await expect(page.locator("[data-toggle]")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Start task", exact: true })).toBeVisible();
+});
+
+test("choosing a task under Start task toggles it, reloads the blocks and closes the list", async ({ page }) => {
+  const start = page.getByRole("button", { name: "Start task", exact: true });
+  await start.click();
+  const search = page.getByLabel("Task to start or stop");
+  await expect(search).toBeFocused();
+
+  await search.fill("serialize");
+  await search.press("Enter");
+
+  await expect(page.getByRole("button", { name: "Stop Serialize Hold per Domain", exact: true })).toBeVisible();
+  await expect(search).toHaveCount(0);
+  await expect(start).toBeFocused();
+  expect((await state(page)).toggles).toEqual([SERIALIZE]);
+
+  await start.click();
+  const option = page.getByRole("option").filter({ hasText: "Serialize Hold per Domain" });
+  await expect(option).toContainText("Running");
 });
 
 test("a tiny block draws at its true width, has no edge handles, and its body moves it", async ({ page }) => {

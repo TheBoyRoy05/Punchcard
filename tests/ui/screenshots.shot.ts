@@ -22,6 +22,11 @@ for (const width of WIDTHS) {
 
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Start task", exact: true }).click();
+    await page.getByLabel("Task to start or stop").fill("e");
+    await page.screenshot({ path: `${SHOTS}/start-${width}.png`, fullPage: true });
+
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "week" }).click();
     await page.getByRole("button", { name: "Previous" }).click();
     await expect(page.locator("[data-track]")).toHaveCount(7);

@@ -4,6 +4,9 @@ export type Range = "day" | "week";
 
 export type SaveResult = { ok: true } | { ok: false; error: string };
 
+// `running` is the note's state after the toggle.
+export type ToggleResult = { ok: true; running: boolean } | { ok: false; error: string };
+
 // `color` indexes the project palette, so a host keeps one project on one color across views.
 export interface TaskNote {
   name: string;
@@ -13,7 +16,7 @@ export interface TaskNote {
   running: boolean;
 }
 
-// `notes` covers every note a block references, including completed notes missing from the picker list.
+// `notes` covers every note a block references, including completed notes missing from the task list.
 export interface LoadedRange {
   blocks: Block[];
   notes: TaskNote[];
@@ -29,5 +32,7 @@ export interface TimelineHost {
   blockMinMinutes: number;
   now(): Minutes;
   save(original: Block | null, block: Block | null): Promise<SaveResult>;
+  // Starts the note's block at now, or stops it when it is running.
+  toggle(path: string): Promise<ToggleResult>;
   openNote(path: string): void;
 }

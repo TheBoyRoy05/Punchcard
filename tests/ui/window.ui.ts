@@ -10,7 +10,15 @@ const CLOSE_REQUESTED = "tauri://close-requested";
 
 interface Call {
   cmd: string;
-  args: { block?: Block | null; event?: string; handler?: number } | undefined;
+  args:
+    | {
+        block?: Block | null;
+        event?: string;
+        handler?: number;
+        note?: string;
+        height?: number;
+      }
+    | undefined;
 }
 
 interface FakeTauri {
@@ -50,6 +58,7 @@ test("a click elsewhere right after typing a log entry saves it before the windo
 });
 
 test("Esc twice right after typing a log entry saves it before the window closes", async ({ page }) => {
+  await page.getByLabel("Task to start or stop").press("Escape");
   await typeEntry(page);
 
   await page.keyboard.press("Escape");
@@ -71,6 +80,71 @@ test("a click elsewhere after a refused save keeps the window open to show why, 
 
   expect(await commands(page)).toContain("plugin:window|destroy");
 });
+
+test("the Start task search has focus when the window opens, and Esc closes the list before the window", async ({ page }) => {
+  const search = page.getByLabel("Task to start or stop");
+  await expect(search).toBeFocused();
+
+  await page.keyboard.press("Escape");
+
+  await expect(search).toHaveCount(0);
+  expect(await commands(page)).not.toContain("plugin:window|close");
+
+  await page.keyboard.press("Escape");
+
+  await expect.poll(() => commands(page)).toContain("plugin:window|destroy");
+});
+
+test("Esc closes the Start task list before the window even when focus has left its search", async ({ page }) => {
+  await page.locator("h1").click();
+
+  await page.keyboard.press("Escape");
+
+  await expect(page.getByLabel("Task to start or stop")).toHaveCount(0);
+  expect(await commands(page)).not.toContain("plugin:window|close");
+});
+
+test("choosing a task under Start task toggles it by path and reloads the range", async ({ page }) => {
+  await page.getByLabel("Task to start or stop").fill("serialize");
+  await page.keyboard.press("Enter");
+
+  const vaultCommands = async (): Promise<string[]> => (await commands(page)).filter((cmd) => cmd === "toggle" || cmd === "load");
+  await expect.poll(async () => (await vaultCommands()).slice(-2)).toEqual(["toggle", "load"]);
+  const calls = await page.evaluate(() => window.fakeTauri.calls);
+  expect(calls.find((call) => call.cmd === "toggle")?.args?.note).toBe("Tasks/Serialize Hold.md");
+});
+
+test("the window height fits its content, with the Start task list open or closed", async ({ page }) => {
+  await expect.poll(() => lastHeight(page)).toBe(await contentHeight(page));
+  const open = await contentHeight(page);
+
+  await page.getByLabel("Task to start or stop").press("Escape");
+
+  await expect.poll(() => lastHeight(page)).toBe(await contentHeight(page));
+  expect(await lastHeight(page)).toBeLessThan(open);
+});
+
+test("the window grows to fit a block popup that reaches past the rows", async ({ page }) => {
+  await page.getByLabel("Task to start or stop").press("Escape");
+
+  await page.getByRole("button", { name: "Port Task Timer to Rust Stint, 13:00-14:43" }).click();
+
+  const popupBottom = await page.locator("[data-popup]").evaluate((card) => {
+    const top = document.getElementById("timeline")?.getBoundingClientRect().top ?? 0;
+    return Math.ceil(card.getBoundingClientRect().bottom - top + 8);
+  });
+  expect(popupBottom).toBeGreaterThan(await contentHeight(page));
+  await expect.poll(() => lastHeight(page)).toBe(popupBottom);
+});
+
+async function lastHeight(page: Page): Promise<number | undefined> {
+  const calls = await page.evaluate(() => window.fakeTauri.calls);
+  return calls.filter((call) => call.cmd === "fit").at(-1)?.args?.height;
+}
+
+function contentHeight(page: Page): Promise<number> {
+  return page.locator("#timeline").evaluate((timeline) => (timeline as HTMLElement).offsetHeight);
+}
 
 async function typeEntry(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Knowledge Anchor, 11:30-12:25" }).click();
@@ -125,6 +199,8 @@ function fakeTauri({ opening, blocks, saveMs, closeRequested }: { opening: unkno
           }
           calls.push({ cmd: "save landed", args: undefined });
           return null;
+        case "toggle":
+          return true;
         case "plugin:event|listen":
           listeners.set(args?.event ?? "", args?.handler ?? -1);
           return args?.handler;

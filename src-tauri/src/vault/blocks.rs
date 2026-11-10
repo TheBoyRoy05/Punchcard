@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use chrono::NaiveDate;
 use punchcard_core::day::day_window;
@@ -7,8 +7,8 @@ use punchcard_core::span::Span;
 use punchcard_core::{Block, Log, NoteBody, has_buried_log};
 
 use super::{
-    TimerError, buried_log, is_hidden, is_markdown, notes, read_lines, rebuild_derived, settings,
-    write_lines,
+    TimerError, buried_log, not_a_note, note_in_vault, notes, read_lines, rebuild_derived,
+    settings, write_lines,
 };
 use crate::note::{Note, note_name};
 
@@ -48,13 +48,12 @@ pub fn save_block(
     original: Option<&Block>,
     block: Option<Block>,
 ) -> Result<(), TimerError> {
-    let refused = || TimerError(format!("{} is not a note in the vault", path.display()));
-    let path = note_in_vault(vault, path).ok_or_else(refused)?;
+    let path = note_in_vault(vault, path).ok_or_else(|| not_a_note(path))?;
     let name = note_name(&path);
     let day_start = settings::read(vault)?.day_start;
     let lines = read_lines(&path)?;
     if Note::from_lines(path.clone(), &lines).is_none() {
-        return Err(refused());
+        return Err(not_a_note(&path));
     }
     if has_buried_log(&lines) {
         return Err(buried_log(name));
@@ -93,14 +92,6 @@ pub fn save_block(
     Ok(())
 }
 
-// The path comes from the webview, so it must resolve, through any symlink, to a file that collect_notes reads as a note.
-fn note_in_vault(vault: &Path, path: &Path) -> Option<PathBuf> {
-    let resolved = path.canonicalize().ok()?;
-    let relative = resolved.strip_prefix(vault.canonicalize().ok()?).ok()?;
-    let hidden = relative.iter().any(is_hidden);
-    (!hidden && is_markdown(relative)).then_some(resolved)
-}
-
 // The log is formatted newest first, so order alone never makes two logs differ.
 fn same_blocks(written: &[Block], saved: &[Block]) -> bool {
     let sorted = |blocks: &[Block]| {
@@ -116,6 +107,7 @@ fn same_blocks(written: &[Block], saved: &[Block]) -> bool {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::path::PathBuf;
 
     use punchcard_core::time::parse_day;
 

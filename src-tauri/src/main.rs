@@ -8,7 +8,7 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand};
 use stint_lib::timeline::{self, Range};
 use stint_lib::vault::{self, TimerError};
-use stint_lib::{notify, picker, toggle_and_notify};
+use stint_lib::{notify, toggle_and_notify};
 
 #[derive(Parser)]
 #[command(version, about)]
@@ -19,9 +19,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Open the ranked task picker; Enter toggles the selected task
-    Pick,
-    /// Open the timeline of today or this week, to drag, add and edit blocks
+    /// Open the timeline of today or this week, to drag, add and edit blocks and to start or stop a task
     Timeline {
         #[arg(value_enum, default_value = "day")]
         range: Range,
@@ -47,7 +45,7 @@ enum Command {
 
 fn main() -> ExitCode {
     let command = Cli::parse().command;
-    let changes_timer = matches!(command, Command::Pick | Command::Toggle { .. });
+    let changes_timer = matches!(command, Command::Toggle { .. });
 
     match run(command) {
         Ok(()) => ExitCode::SUCCESS,
@@ -65,9 +63,11 @@ fn run(command: Command) -> Result<(), TimerError> {
     // `notify` needs no vault, since stint starts it detached to wait for a click.
     let vault = vault::vault_dir;
     match command {
-        Command::Pick => picker::open(vault()?)?,
         Command::Timeline { range } => timeline::open(vault()?, range)?,
-        Command::Toggle { note } => toggle_and_notify(&vault()?, &note)?,
+        Command::Toggle { note } => {
+            let vault = vault()?;
+            toggle_and_notify(&vault, &vault::note_named(&vault, &note)?)?;
+        }
         Command::Notify {
             title,
             message,

@@ -15,6 +15,7 @@ export interface HarnessState {
   refused: number | null;
   // How long each save takes, so a test can act while one is still in flight.
   saveMs: number;
+  toggles: string[];
 }
 
 declare global {

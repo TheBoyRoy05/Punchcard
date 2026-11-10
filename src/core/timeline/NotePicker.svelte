@@ -3,14 +3,16 @@
   import type { TaskNote } from "./host";
   import { projectColor } from "./palette";
 
+  // The caller places the list and sizes it; the list fills that box.
   interface Props {
     notes: TaskNote[];
     current: string;
+    label: string;
     onPick: (note: TaskNote) => void;
     onClose: () => void;
   }
 
-  let { notes, current, onPick, onClose }: Props = $props();
+  let { notes, current, label, onPick, onClose }: Props = $props();
   const listId = $props.id();
 
   let query = $state("");
@@ -36,7 +38,10 @@
       selected = Math.min(Math.max(selected + step, 0), Math.max(shown.length - 1, 0));
       event.preventDefault();
     } else if (event.key === "Enter") {
-      choose(shown[selected]);
+      // A held Enter would choose again from whatever list its repeats land on, and an IME's Enter only confirms text.
+      if (!event.repeat && !event.isComposing) {
+        choose(shown[selected]);
+      }
       event.preventDefault();
     } else if (event.key === "Escape") {
       onClose();
@@ -47,7 +52,7 @@
 </script>
 
 <div
-  class="pc:absolute pc:inset-x-3 pc:top-10 pc:bottom-3 pc:z-20 pc:box-border pc:flex pc:flex-col pc:rounded-md pc:border pc:border-solid pc:border-rule pc:bg-card pc:p-2 pc:shadow-[0_8px_24px_rgb(0_0_0/.45)]"
+  class="pc:box-border pc:flex pc:h-full pc:flex-col pc:rounded-md pc:border pc:border-solid pc:border-rule pc:bg-card pc:p-2 pc:shadow-[0_8px_24px_rgb(0_0_0/.45)]"
 >
   <input
     bind:this={input}
@@ -55,7 +60,7 @@
     oninput={() => (selected = 0)}
     onkeydown={keydown}
     class="pc:box-border pc:w-full pc:rounded pc:border pc:border-solid pc:border-now pc:bg-surface pc:px-2 pc:py-1 pc:font-ui pc:text-row pc:text-ink pc:outline-none"
-    aria-label="Move block to task"
+    aria-label={label}
     aria-controls={listId}
     aria-activedescendant={shown.length > 0 ? `${listId}-${selected}` : undefined}
     placeholder="Task"

@@ -16,7 +16,7 @@ export default defineConfig({
   },
   build: {
     rolldownOptions: {
-      input: [resolve(import.meta.dirname, "picker.html"), resolve(import.meta.dirname, "timeline.html")],
+      input: [resolve(import.meta.dirname, "timeline.html")],
     },
   },
   test: { exclude: [...configDefaults.exclude, "**/.worktrees/**"] },

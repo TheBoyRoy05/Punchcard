@@ -10,7 +10,7 @@ const POST_AS: &str = "com.apple.Terminal";
 // The action key XDG reports for a body click. macOS and Windows report a body click as Default instead.
 const OPEN_ACTION: &str = "default";
 
-// Acting on a click means waiting for it, which outlives a toggle or a picker, so a detached `stint notify` waits instead.
+// Acting on a click means waiting for it, which outlives a toggle or a timeline window, so a detached `stint notify` waits instead.
 pub fn show(title: &str, message: &str, url: Option<&str>) {
     let Some(url) = url else {
         if let Err(error) = notification(title, message).show() {

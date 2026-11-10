@@ -1,12 +1,15 @@
 <script lang="ts">
   import ChevronLeft from "@lucide/svelte/icons/chevron-left";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
+  import Play from "@lucide/svelte/icons/play";
+  import Square from "@lucide/svelte/icons/square";
   import { onDestroy, tick, untrack } from "svelte";
 
   import { clip, dayWindow, editBlock, logicalDay, type Block, type ClosedSpan, type EditResult, type Minutes } from "../../wasm/core";
   import BlockPopup from "./BlockPopup.svelte";
   import { History, planChanges, sameBlock, type Change } from "./history";
   import type { LoadedRange, Range, TaskNote, TimelineHost } from "./host";
+  import NotePicker from "./NotePicker.svelte";
   import {
     dragSpan,
     formatClock,
@@ -81,15 +84,19 @@
     blockMinMinutes,
     now: readNow,
     save,
+    toggle,
     openNote,
     initialRange = "day",
-  }: TimelineHost & { initialRange?: Range } = $props();
+    focusStart = false,
+  }: TimelineHost & { initialRange?: Range; focusStart?: boolean } = $props();
 
   let now = $state(untrack(() => readNow()));
   let range = $state<Range>(untrack(() => initialRange));
   let day = $state(untrack(() => logicalDay(readNow(), dayStartHour)));
   let blocks = $state<Block[]>([]);
   let rangeNotes = $state<TaskNote[]>([]);
+  // Running states the toggles left, kept until a load reports the note again, since its new block may be outside the range.
+  let toggled = $state.raw(new Map<string, boolean>());
   let notice = $state("");
   let trackWidth = $state(0);
   let drag = $state<Drag | null>(null);
@@ -98,9 +105,12 @@
   let popup = $state<Popup | null>(null);
   let anchor = $state<HTMLElement | null>(null);
   let frame: HTMLElement | undefined = $state();
+  let starting = $state(untrack(() => focusStart));
+  let startButton: HTMLButtonElement | undefined = $state();
   let openings = 0;
   let loads = 0;
   let justDragged = false;
+  let toggling = false;
   let queue: Promise<unknown> = Promise.resolve();
   const history = new History();
 
@@ -108,7 +118,16 @@
   const firstDay = $derived(days[0] ?? day);
   const lastDay = $derived(days[days.length - 1] ?? day);
   // The picker notes are included, so a block just moved to one resolves before the reload lands.
-  const notesByPath = $derived(new Map([...notes, ...rangeNotes].map((note) => [note.path, note])));
+  const notesByPath = $derived(
+    new Map(
+      [...notes, ...rangeNotes].map((note) => {
+        const running = toggled.get(note.path) ?? note.running;
+        return [note.path, { ...note, running }];
+      })
+    )
+  );
+  // The host's list in its rank order, with each note's newest running state.
+  const pickerNotes = $derived(notes.map((note) => notesByPath.get(note.path) ?? note));
   // A reload during a drag or its save replaces the block's object, so it is found by key.
   const drawn = $derived(blocks.map((block) => moving().find((moved) => keyOf(block) === keyOf(moved.block))?.preview ?? block));
   const rows = $derived(range === "day" ? noteRows() : dayRows());
@@ -166,6 +185,8 @@
     }
     blocks = loaded.blocks;
     rangeNotes = loaded.notes;
+    const reported = new Set(loaded.notes.map((note) => note.path));
+    toggled = new Map([...toggled].filter(([path]) => !reported.has(path)));
 
     // A popup whose block moved is re-pointed by the edit that moved it, so only a same-key block refreshes here.
     const open = popup;
@@ -385,6 +406,42 @@
     });
   }
 
+  // A second toggle while the first is in flight would stop the timer it just started.
+  function startOrStop(note: TaskNote): void {
+    if (toggling) {
+      return;
+    }
+
+    toggling = true;
+    void queued(async () => {
+      let error = "";
+      try {
+        const result = await toggle(note.path);
+        if (result.ok) {
+          toggled = new Map([...toggled, [note.path, result.running]]);
+        } else {
+          error = result.error;
+        }
+      } catch (failure) {
+        error = messageOf(failure);
+      }
+
+      const reloadError = await reload();
+      notice = error || reloadError;
+      toggling = false;
+    });
+  }
+
+  function pickToToggle(note: TaskNote): void {
+    closeStart();
+    startOrStop(note);
+  }
+
+  function closeStart(): void {
+    starting = false;
+    startButton?.focus();
+  }
+
   async function openPopup(block: Block, picking: boolean): Promise<void> {
     openings += 1;
     popup = { block, opening: openings, picking };
@@ -526,6 +583,12 @@
       return;
     }
 
+    if (event.key === "Escape" && starting) {
+      closeStart();
+      event.preventDefault();
+      return;
+    }
+
     // Ctrl+Z on a Mac and Cmd+Z elsewhere mean nothing else, so either one undoes.
     const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
     const command = event.metaKey || event.ctrlKey;
@@ -624,6 +687,21 @@
           {#if row.note !== null}
             {@const note = row.note}
             <button
+              class={[
+                "pc:shrink-0 pc:cursor-pointer pc:rounded pc:border-0 pc:bg-transparent pc:p-0.5 pc:hover:bg-hover",
+                note.running ? "pc:text-now" : "pc:text-faint pc:hover:text-ink",
+              ]}
+              aria-label={`${note.running ? "Stop" : "Start"} ${row.label}`}
+              data-toggle
+              onclick={() => startOrStop(note)}
+            >
+              {#if note.running}
+                <Square class="pc:block" size={12} />
+              {:else}
+                <Play class="pc:block" size={12} />
+              {/if}
+            </button>
+            <button
               class="pc:min-w-0 pc:flex-1 pc:cursor-pointer pc:truncate pc:border-0 pc:bg-transparent pc:p-0 pc:text-left pc:font-ui pc:text-row pc:text-ink pc:hover:underline"
               title={row.label}
               onclick={() => openNote(note.path)}>{row.label}</button
@@ -702,6 +780,24 @@
         </div>
       {/each}
 
+      <!-- Day rows are indented under their project, and the button's icon lines up with theirs. -->
+      <div class={["pc:col-span-2 pc:pt-2", range === "day" && "pc:pl-2 pc:@max-[700px]:pl-0"]}>
+        <button
+          bind:this={startButton}
+          class={[
+            "pc:flex pc:cursor-pointer pc:items-center pc:gap-2 pc:rounded pc:border-0 pc:px-2 pc:py-1 pc:font-ui pc:text-row pc:text-muted pc:hover:bg-hover pc:hover:text-ink",
+            starting ? "pc:bg-hover" : "pc:bg-transparent",
+          ]}
+          aria-expanded={starting}
+          onclick={() => (starting = !starting)}><Play class="pc:block" size={12} />Start task</button
+        >
+        {#if starting}
+          <div class="pc:h-64 pc:pt-2">
+            <NotePicker notes={pickerNotes} current="" label="Task to start or stop" onPick={pickToToggle} onClose={closeStart} />
+          </div>
+        {/if}
+      </div>
+
       <!-- Inside the grid, so the popup clamps to the timeline's content edges, not the section's padding. -->
       {#if popup !== null && anchor !== null}
         {#key popup.opening}
@@ -710,7 +806,7 @@
             block={open.block}
             note={open.block.note === "" ? null : noteOf(open.block.note)}
             {anchor}
-            {notes}
+            notes={pickerNotes}
             {now}
             {dayStartHour}
             picking={open.picking}
