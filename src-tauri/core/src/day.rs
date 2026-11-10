@@ -42,11 +42,17 @@ pub fn day_window(day: NaiveDate, day_start: DayStart) -> ClosedSpan {
     }
 }
 
-// A running span is drawn up to now. In the repeated fall-back hour it can start after now, and then draws nothing.
+// A running span is drawn up to now, and at least a minute wide so it shows in the minute it starts.
+// In the repeated fall-back hour it can start after now, and then draws nothing.
 pub fn clip(span: Span, window: ClosedSpan, now: NaiveDateTime) -> Option<ClosedSpan> {
+    if span.end.is_none() && now < span.start {
+        return None;
+    }
     let drawn = ClosedSpan {
         start: span.start,
-        end: span.end.unwrap_or(now),
+        end: span
+            .end
+            .unwrap_or_else(|| now.max(span.start + TimeDelta::minutes(1))),
     };
     if drawn.end <= drawn.start || !Span::from(drawn).overlaps(&window.into()) {
         return None;
@@ -137,6 +143,14 @@ mod tests {
         assert_eq!(
             clipped("26/11/02 10:00 -", "26-11-02").as_deref(),
             Some("26/11/02 10:00 - 26/11/02 12:00")
+        );
+    }
+
+    #[test]
+    fn clip_draws_a_running_block_a_minute_wide_in_the_minute_it_starts() {
+        assert_eq!(
+            clipped("26/11/02 12:00 -", "26-11-02").as_deref(),
+            Some("26/11/02 12:00 - 26/11/02 12:01")
         );
     }
 
