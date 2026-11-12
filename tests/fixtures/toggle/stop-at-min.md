@@ -1,8 +1,8 @@
 ---
 tags:
   - "#Task"
-punchcard__worked_days:
-  - "[[26-11-01]]"
+punchcard__worked:
+  - "[[26-11-01]] 0"
 ---
 ### Log
 #### 26/11/01 11:37 -

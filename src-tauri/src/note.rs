@@ -6,8 +6,7 @@ use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 use punchcard_core::Log;
 use serde::{Serialize, Serializer};
 
-pub const DAYS_KEY: &str = "punchcard__worked_days";
-pub const HOURS_KEY: &str = "punchcard__worked_hours";
+pub const WORKED_KEY: &str = "punchcard__worked";
 pub const LIST_ITEM: &str = "  - ";
 pub const TASK_TAG: &str = "Task";
 const PROJECT_TAG: &str = "Project";
@@ -259,11 +258,11 @@ mod tests {
 
     #[test]
     fn empty_value_starts_an_empty_list() {
-        let fields = parse_frontmatter(&lines("---\npunchcard__worked_days:\n---"))
+        let fields = parse_frontmatter(&lines("---\npunchcard__worked:\n---"))
             .unwrap()
             .fields;
 
-        assert!(fields["punchcard__worked_days"].is_empty());
+        assert!(fields["punchcard__worked"].is_empty());
     }
 
     #[test]

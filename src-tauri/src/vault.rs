@@ -9,13 +9,13 @@ use std::process::Command;
 
 use chrono::{Local, NaiveDateTime, TimeDelta};
 use punchcard_core::day::{DayStart, worked_days};
-use punchcard_core::span::{Span, shorter_than, worked_hours};
-use punchcard_core::time::{format_day, wall_clock};
+use punchcard_core::span::{Span, shorter_than};
+use punchcard_core::time::wall_clock;
 use punchcard_core::{
     Block, LOG_HEADING, Log, entry_lines, has_buried_log, insert_block, log_blocks, log_heading,
 };
 
-use crate::note::{DAYS_KEY, HOURS_KEY, LIST_ITEM, Note, note_name};
+use crate::note::{LIST_ITEM, Note, WORKED_KEY, note_name};
 use settings::Settings;
 
 pub mod blocks;
@@ -23,6 +23,8 @@ pub mod settings;
 pub mod tasks;
 
 const MACHINE_ENV: &str = ".config/machine.env";
+// The keys `punchcard__worked` replaced, removed on every rebuild so one sync migrates a vault.
+const RETIRED_KEYS: [&str; 2] = ["punchcard__worked_days", "punchcard__worked_hours"];
 
 #[derive(Debug)]
 pub struct TimerError(String);
@@ -85,7 +87,7 @@ impl fmt::Display for Synced {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Synced::Rebuilt { note } => {
-                write!(formatter, "rebuilt {DAYS_KEY} and {HOURS_KEY} in {note}")
+                write!(formatter, "rebuilt {WORKED_KEY} in {note}")
             }
             Synced::ReportedBadHeading { note, heading } => {
                 write!(
@@ -299,30 +301,28 @@ fn rebuild_derived(
 ) -> Result<(), TimerError> {
     let log = Log::parse(lines);
 
-    let days = worked_days(log.spans(), day_start).into_iter().map(|day| {
-        format_day(day).ok_or_else(|| {
-            let message = format!("{name} has a block on {day}, which has no two-digit year");
-            TimerError(message)
-        })
-    });
-    let days: Vec<String> = days.collect::<Result<_, _>>()?;
-    let days_field = if days.is_empty() {
+    let items = worked_days(log.spans(), day_start)
+        .into_iter()
+        .map(|worked| {
+            let item = worked.format().ok_or_else(|| {
+                let day = worked.day;
+                let message = format!("{name} has a block on {day}, which has no two-digit year");
+                TimerError(message)
+            })?;
+            Ok(format!("{LIST_ITEM}\"{item}\""))
+        });
+    let items: Vec<String> = items.collect::<Result<_, TimerError>>()?;
+    let field = if items.is_empty() {
         Vec::new()
     } else {
-        let items = days
-            .into_iter()
-            .map(|day| format!("{LIST_ITEM}\"[[{day}]]\""));
-        iter::once(format!("{DAYS_KEY}:")).chain(items).collect()
+        iter::once(format!("{WORKED_KEY}:")).chain(items).collect()
     };
-    set_field(lines, DAYS_KEY, days_field, name)?;
+    set_field(lines, WORKED_KEY, field, name)?;
 
-    let hours = worked_hours(log.spans());
-    let hours_field = if hours == 0.0 {
-        Vec::new()
-    } else {
-        vec![format!("{HOURS_KEY}: {hours}")]
-    };
-    set_field(lines, HOURS_KEY, hours_field, name)
+    for key in RETIRED_KEYS {
+        set_field(lines, key, Vec::new(), name)?;
+    }
+    Ok(())
 }
 
 fn set_field(
@@ -827,7 +827,7 @@ pub(crate) mod tests {
     fn sync_leaves_blocks_shorter_than_the_minimum() {
         let vault = TempVault::new("sync-short");
         let note = vault.path.join("Port.md");
-        let text = "---\npunchcard__worked_days:\n  - \"[[26-11-01]]\"\npunchcard__worked_hours: 0.02\n---\n### Log\n#### 26/11/01 09:00 - 26/11/01 09:01\n";
+        let text = "---\npunchcard__worked:\n  - \"[[26-11-01]] 0.02\"\n---\n### Log\n#### 26/11/01 09:00 - 26/11/01 09:01\n";
         fs::write(&note, text).unwrap();
 
         assert_eq!(sync(&vault.path).unwrap(), []);
@@ -847,44 +847,70 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn rebuild_replaces_days_and_hours_in_place() {
+    fn rebuild_replaces_worked_in_place() {
         let text = rebuilt(
-            "---\npunchcard__worked_days:\n  - \"[[26-10-30]]\"\npunchcard__worked_hours: 9\ntags:\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:30",
+            "---\npunchcard__worked:\n  - \"[[26-10-30]] 9\"\ntags:\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:30",
         );
 
         assert_eq!(
             text,
-            "---\npunchcard__worked_days:\n  - \"[[26-10-31]]\"\npunchcard__worked_hours: 1.5\ntags:\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:30"
+            "---\npunchcard__worked:\n  - \"[[26-10-31]] 1.5\"\ntags:\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:30"
         );
     }
 
     #[test]
-    fn rebuild_appends_keys_when_missing() {
+    fn rebuild_lists_each_day_with_its_own_hours() {
+        let text = rebuilt(
+            "---\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 09:25\n#### 26/10/30 09:00 - 26/10/30 10:30",
+        );
+
+        assert!(text.starts_with(
+            "---\npunchcard__worked:\n  - \"[[26-10-30]] 1.5\"\n  - \"[[26-10-31]] 0.42\"\n---"
+        ));
+    }
+
+    #[test]
+    fn rebuild_appends_worked_when_missing() {
         let text = rebuilt("---\ntags:\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:00");
 
-        assert!(
-            text.starts_with(
-                "---\ntags:\npunchcard__worked_days:\n  - \"[[26-10-31]]\"\npunchcard__worked_hours: 1\n---"
-            )
+        assert!(text.starts_with("---\ntags:\npunchcard__worked:\n  - \"[[26-10-31]] 1\"\n---"));
+    }
+
+    #[test]
+    fn rebuild_deletes_the_retired_days_and_hours_keys() {
+        let text = rebuilt(
+            "---\npunchcard__worked_days:\n  - \"[[26-10-31]]\"\npunchcard__worked_hours: 1\ntags:\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:00",
+        );
+
+        assert_eq!(
+            text,
+            "---\ntags:\npunchcard__worked:\n  - \"[[26-10-31]] 1\"\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:00"
         );
     }
 
     #[test]
-    fn rebuild_removes_keys_when_log_is_empty() {
+    fn rebuild_deletes_retired_keys_apart_among_other_keys_on_a_note_without_a_log() {
         let text = rebuilt(
-            "---\npunchcard__worked_days:\n  - \"[[26-10-30]]\"\npunchcard__worked_hours: 2\n---\nbody",
+            "---\ntags:\npunchcard__worked_hours: 2\nstatus: Done\npunchcard__worked_days:\n  - \"[[26-10-30]]\"\n---\nbody",
         );
+
+        assert_eq!(text, "---\ntags:\nstatus: Done\n---\nbody");
+    }
+
+    #[test]
+    fn rebuild_removes_worked_when_log_is_empty() {
+        let text = rebuilt("---\npunchcard__worked:\n  - \"[[26-10-30]] 2\"\n---\nbody");
 
         assert_eq!(text, "---\n---\nbody");
     }
 
     #[test]
-    fn rebuild_links_running_block_day_but_counts_no_hours() {
+    fn rebuild_links_running_block_day_with_no_hours() {
         let text = rebuilt("---\n---\n### Log\n#### 26/11/01 01:00 -");
 
         assert_eq!(
             text,
-            "---\npunchcard__worked_days:\n  - \"[[26-10-31]]\"\n---\n### Log\n#### 26/11/01 01:00 -"
+            "---\npunchcard__worked:\n  - \"[[26-10-31]] 0\"\n---\n### Log\n#### 26/11/01 01:00 -"
         );
     }
 }

@@ -64,7 +64,7 @@ punch toggle "Note name"
 What I did in this block.
 ```
 
-`punch sync` rebuilds `punchcard__worked_days` and `punchcard__worked_hours` in every note's frontmatter from its log, and reports malformed headings.
+`punch sync` rebuilds `punchcard__worked` in every note's frontmatter from its log, one item per worked day such as `"[[26-11-09]] 1.28"`, and reports malformed headings.
 
 ## Build from source
 

@@ -218,16 +218,13 @@ mod tests {
     use crate::day::{DayStart, worked_days};
     use crate::span::worked_hours;
     use crate::test_support::{FIXTURE_SETTINGS, ISO_MINUTE, for_each_fixture};
-    use crate::time::format_day;
 
     #[derive(Deserialize)]
     struct Expected {
         blocks: Vec<ExpectedBlock>,
         bad_headings: Vec<String>,
-        #[serde(rename = "punchcard__worked_days")]
-        worked_days: Vec<String>,
-        #[serde(rename = "punchcard__worked_hours")]
-        worked_hours: f64,
+        #[serde(rename = "punchcard__worked")]
+        worked: Vec<String>,
         formatted: Option<String>,
     }
 
@@ -250,10 +247,10 @@ mod tests {
         log.blocks.iter().map(Block::heading).collect()
     }
 
-    fn days(log: &Log) -> Vec<String> {
+    fn worked(log: &Log) -> Vec<String> {
         let day_start = DayStart::new(FIXTURE_SETTINGS.day_start_hour).unwrap();
         let days = worked_days(log.spans(), day_start).into_iter();
-        days.map(|day| format_day(day).unwrap()).collect()
+        days.map(|day| day.format().unwrap()).collect()
     }
 
     fn block(heading: &str, entry: &str) -> Block {
@@ -305,7 +302,7 @@ mod tests {
 
         assert!(log.running());
         assert_eq!(worked_hours(log.spans()), 0.0);
-        assert_eq!(days(&log), ["26-10-30"]);
+        assert_eq!(worked(&log), ["[[26-10-30]] 0"]);
     }
 
     #[test]
@@ -402,7 +399,7 @@ mod tests {
         let log = log("body\n### Notes");
 
         assert!(log.blocks.is_empty());
-        assert!(days(&log).is_empty());
+        assert!(worked(&log).is_empty());
     }
 
     #[test]
@@ -445,12 +442,7 @@ mod tests {
             let name = path.display();
             assert_eq!(fixture_blocks(&body.log), expected.blocks, "{name}");
             assert_eq!(body.log.bad_headings, expected.bad_headings, "{name}");
-            assert_eq!(days(&body.log), expected.worked_days, "{name}");
-            assert_eq!(
-                worked_hours(body.log.spans()),
-                expected.worked_hours,
-                "{name}"
-            );
+            assert_eq!(worked(&body.log), expected.worked, "{name}");
             let formatted = expected.formatted.as_deref().unwrap_or(text);
             assert_eq!(body.format(), formatted, "{name}");
         });

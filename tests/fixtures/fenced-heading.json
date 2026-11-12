@@ -7,6 +7,5 @@
     }
   ],
   "bad_headings": [],
-  "punchcard__worked_days": ["26-10-29"],
-  "punchcard__worked_hours": 1
+  "punchcard__worked": ["[[26-10-29]] 1"]
 }

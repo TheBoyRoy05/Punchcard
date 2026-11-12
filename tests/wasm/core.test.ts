@@ -17,7 +17,6 @@ import {
   parseTime,
   wallClock,
   workedDays,
-  workedHours,
   type Block,
   type Minutes,
 } from "../../src/wasm/core";
@@ -25,8 +24,7 @@ import {
 interface Expected {
   blocks: { start: string; end: string | null; entry: string }[];
   bad_headings: string[];
-  punchcard__worked_days: string[];
-  punchcard__worked_hours: number;
+  punchcard__worked: string[];
   formatted?: string;
 }
 
@@ -64,9 +62,8 @@ describe.each(fixtures("../fixtures/"))("fixture %s", (name) => {
     expect(log.badHeadings).toEqual(expected.bad_headings);
   });
 
-  it("derives worked days and hours", () => {
-    expect(workedDays(spans, DAY_START_HOUR)).toEqual(expected.punchcard__worked_days);
-    expect(workedHours(spans)).toBe(expected.punchcard__worked_hours);
+  it("derives each worked day with its hours", () => {
+    expect(workedDays(spans, DAY_START_HOUR)).toEqual(expected.punchcard__worked);
   });
 
   // A fixture with non-canonical headings sets `formatted`; every other one round trips byte for byte.

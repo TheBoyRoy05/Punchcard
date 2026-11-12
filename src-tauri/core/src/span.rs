@@ -69,24 +69,37 @@ pub fn shorter_than(start: NaiveDateTime, end: NaiveDateTime, min_minutes: u32) 
     end - start < TimeDelta::minutes(i64::from(min_minutes))
 }
 
-// Parallel timers are real, so overlapping spans count once. A running span counts nothing until it stops.
 pub fn worked_hours(spans: impl IntoIterator<Item = Span>) -> f64 {
+    hours(
+        new_minutes(spans)
+            .into_iter()
+            .map(|(_, minutes)| minutes)
+            .sum(),
+    )
+}
+
+// Parallel timers are real, so overlapping spans count once: each closed span, in start order, gets only the
+// minutes no earlier span already counted. A running span counts nothing until it stops.
+pub fn new_minutes(spans: impl IntoIterator<Item = Span>) -> Vec<(ClosedSpan, i64)> {
     let mut closed: Vec<ClosedSpan> = spans
         .into_iter()
         .filter_map(|Span { start, end }| Some(ClosedSpan { start, end: end? }))
         .collect();
     closed.sort_by_key(|span| span.start);
 
-    let mut minutes = 0;
     let mut counted_to: Option<NaiveDateTime> = None;
+    let mut counted = Vec::new();
     for span in closed {
         let from = counted_to.map_or(span.start, |counted| counted.max(span.start));
         if span.end > from {
-            minutes += (span.end - from).num_minutes();
+            counted.push((span, (span.end - from).num_minutes()));
             counted_to = Some(span.end);
         }
     }
+    counted
+}
 
+pub fn hours(minutes: i64) -> f64 {
     let hours = minutes as f64 / 60.0;
     (hours * 100.0).round() / 100.0
 }

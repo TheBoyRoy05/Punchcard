@@ -142,7 +142,8 @@ pub fn worked_hours(spans: JsSpans) -> Result<f64, JsError> {
 pub fn worked_days(spans: JsSpans, day_start_hour: f64) -> Result<JsStrings, JsError> {
     let spans: Vec<Span> = from_js(spans.into())?;
     let days = day::worked_days(spans, day_start(day_start_hour)?).into_iter();
-    let days: Vec<String> = days.map(day_text).collect::<Result<_, _>>()?;
+    let days = days.map(|worked| worked.format().ok_or_else(|| no_two_digit_year(worked.day)));
+    let days: Vec<String> = days.collect::<Result<_, _>>()?;
     Ok(to_js(&days)?.unchecked_into())
 }
 
@@ -210,7 +211,11 @@ fn day_start(hour: f64) -> Result<DayStart, JsError> {
 }
 
 fn day_text(day: NaiveDate) -> Result<String, JsError> {
-    format_day(day).ok_or_else(|| JsError::new(&format!("{day} has no two-digit year")))
+    format_day(day).ok_or_else(|| no_two_digit_year(day))
+}
+
+fn no_two_digit_year(day: NaiveDate) -> JsError {
+    JsError::new(&format!("{day} has no two-digit year"))
 }
 
 fn whole_number(number: f64) -> Option<i64> {

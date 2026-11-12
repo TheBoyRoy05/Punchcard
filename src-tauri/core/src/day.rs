@@ -1,9 +1,10 @@
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::ops::RangeInclusive;
 
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime, TimeDelta};
 
-use crate::span::{ClosedSpan, Span};
+use crate::span::{ClosedSpan, Span, hours, new_minutes};
+use crate::time::format_day;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DayStart(u32);
@@ -26,6 +27,19 @@ impl DayStart {
 
     fn offset(self) -> TimeDelta {
         TimeDelta::hours(i64::from(self.0))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct WorkedDay {
+    pub day: NaiveDate,
+    pub hours: f64,
+}
+
+impl WorkedDay {
+    // The `punchcard__worked` item: a daily-note link Bases can follow, then that day's hours.
+    pub fn format(self) -> Option<String> {
+        Some(format!("[[{}]] {}", format_day(self.day)?, self.hours))
     }
 }
 
@@ -64,12 +78,24 @@ pub fn clip(span: Span, window: ClosedSpan, now: NaiveDateTime) -> Option<Closed
     })
 }
 
-pub fn worked_days(spans: impl IntoIterator<Item = Span>, day_start: DayStart) -> Vec<NaiveDate> {
-    let days: BTreeSet<NaiveDate> = spans
-        .into_iter()
-        .map(|span| logical_day(span.start, day_start))
+// A block counts toward the day it starts on, so a day with only a running block is listed at 0 hours. Overlap is
+// removed across all blocks before splitting by day, so the days sum to `worked_hours` up to rounding.
+pub fn worked_days(spans: impl IntoIterator<Item = Span>, day_start: DayStart) -> Vec<WorkedDay> {
+    let spans: Vec<Span> = spans.into_iter().collect();
+    let mut days: BTreeMap<NaiveDate, i64> = spans
+        .iter()
+        .map(|span| (logical_day(span.start, day_start), 0))
         .collect();
-    days.into_iter().collect()
+    for (span, minutes) in new_minutes(spans) {
+        *days.entry(logical_day(span.start, day_start)).or_default() += minutes;
+    }
+
+    days.into_iter()
+        .map(|(day, minutes)| WorkedDay {
+            day,
+            hours: hours(minutes),
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -172,19 +198,42 @@ mod tests {
     }
 
     #[test]
-    fn worked_days_lists_each_logical_day_once_sorted() {
+    fn worked_days_lists_each_logical_day_once_sorted_with_its_hours() {
         let spans = [
             span("26/11/02 01:00 -"),
             span("26/11/01 20:00 - 26/11/01 21:00"),
             span("26/10/30 09:00 - 26/10/30 10:00"),
-            span("26/10/30 11:00 - 26/10/30 12:00"),
+            span("26/10/30 11:00 - 26/10/30 11:30"),
         ];
 
         let days: Vec<String> = worked_days(spans, DAY_START)
             .into_iter()
-            .map(|day| format_day(day).unwrap())
+            .map(|day| day.format().unwrap())
             .collect();
 
-        assert_eq!(days, ["26-10-30", "26-11-01"]);
+        assert_eq!(days, ["[[26-10-30]] 1.5", "[[26-11-01]] 1"]);
+    }
+
+    #[test]
+    fn worked_days_lists_a_day_with_only_a_running_block_at_zero_hours() {
+        let days = worked_days([span("26/11/02 09:00 -")], DAY_START);
+
+        assert_eq!(days[0].format().as_deref(), Some("[[26-11-02]] 0"));
+    }
+
+    #[test]
+    fn worked_days_count_overlap_across_days_once() {
+        let day_start = DayStart::new(6).unwrap();
+        let spans = [
+            span("26/11/01 22:00 - 26/11/02 07:00"),
+            span("26/11/02 06:30 - 26/11/02 07:00"),
+        ];
+
+        let days: Vec<String> = worked_days(spans, day_start)
+            .into_iter()
+            .map(|day| day.format().unwrap())
+            .collect();
+
+        assert_eq!(days, ["[[26-11-01]] 9", "[[26-11-02]] 0"]);
     }
 }

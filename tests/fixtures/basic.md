@@ -2,9 +2,8 @@
 tags:
   - "#Task"
 status: In Progress
-punchcard__worked_days:
-  - "[[26-10-30]]"
-punchcard__worked_hours: 0.42
+punchcard__worked:
+  - "[[26-10-30]] 0.42"
 ---
 Body text stays as it is.
 ### Notes
