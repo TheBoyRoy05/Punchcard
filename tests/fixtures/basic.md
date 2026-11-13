@@ -3,7 +3,7 @@ tags:
   - "#Task"
 status: In Progress
 punchcard__worked:
-  - "[[26-10-30]] 0.42"
+  - "[[26-10-30|0.42]]"
 ---
 Body text stays as it is.
 ### Notes

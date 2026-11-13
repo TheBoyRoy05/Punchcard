@@ -827,11 +827,28 @@ pub(crate) mod tests {
     fn sync_leaves_blocks_shorter_than_the_minimum() {
         let vault = TempVault::new("sync-short");
         let note = vault.path.join("Port.md");
-        let text = "---\npunchcard__worked:\n  - \"[[26-11-01]] 0.02\"\n---\n### Log\n#### 26/11/01 09:00 - 26/11/01 09:01\n";
+        let text = "---\npunchcard__worked:\n  - \"[[26-11-01|0.02]]\"\n---\n### Log\n#### 26/11/01 09:00 - 26/11/01 09:01\n";
         fs::write(&note, text).unwrap();
 
         assert_eq!(sync(&vault.path).unwrap(), []);
         assert_eq!(fs::read_to_string(&note).unwrap(), text);
+    }
+
+    #[test]
+    fn sync_rewrites_old_worked_items_into_aliased_links() {
+        let vault = TempVault::new("sync-old-worked");
+        let note = vault.path.join("Port.md");
+        let log = "### Log\n#### 26/11/01 09:00 - 26/11/01 10:30\n";
+        fs::write(
+            &note,
+            format!("---\npunchcard__worked:\n  - \"[[26-11-01]] 1.5\"\n---\n{log}"),
+        )
+        .unwrap();
+
+        sync(&vault.path).unwrap();
+
+        let expected = format!("---\npunchcard__worked:\n  - \"[[26-11-01|1.5]]\"\n---\n{log}");
+        assert_eq!(fs::read_to_string(&note).unwrap(), expected);
     }
 
     #[test]
@@ -849,12 +866,12 @@ pub(crate) mod tests {
     #[test]
     fn rebuild_replaces_worked_in_place() {
         let text = rebuilt(
-            "---\npunchcard__worked:\n  - \"[[26-10-30]] 9\"\ntags:\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:30",
+            "---\npunchcard__worked:\n  - \"[[26-10-30|9]]\"\ntags:\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:30",
         );
 
         assert_eq!(
             text,
-            "---\npunchcard__worked:\n  - \"[[26-10-31]] 1.5\"\ntags:\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:30"
+            "---\npunchcard__worked:\n  - \"[[26-10-31|1.5]]\"\ntags:\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:30"
         );
     }
 
@@ -865,7 +882,7 @@ pub(crate) mod tests {
         );
 
         assert!(text.starts_with(
-            "---\npunchcard__worked:\n  - \"[[26-10-30]] 1.5\"\n  - \"[[26-10-31]] 0.42\"\n---"
+            "---\npunchcard__worked:\n  - \"[[26-10-30|1.5]]\"\n  - \"[[26-10-31|0.42]]\"\n---"
         ));
     }
 
@@ -873,7 +890,7 @@ pub(crate) mod tests {
     fn rebuild_appends_worked_when_missing() {
         let text = rebuilt("---\ntags:\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:00");
 
-        assert!(text.starts_with("---\ntags:\npunchcard__worked:\n  - \"[[26-10-31]] 1\"\n---"));
+        assert!(text.starts_with("---\ntags:\npunchcard__worked:\n  - \"[[26-10-31|1]]\"\n---"));
     }
 
     #[test]
@@ -884,7 +901,7 @@ pub(crate) mod tests {
 
         assert_eq!(
             text,
-            "---\ntags:\npunchcard__worked:\n  - \"[[26-10-31]] 1\"\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:00"
+            "---\ntags:\npunchcard__worked:\n  - \"[[26-10-31|1]]\"\n---\n### Log\n#### 26/10/31 09:00 - 26/10/31 10:00"
         );
     }
 
@@ -899,7 +916,7 @@ pub(crate) mod tests {
 
     #[test]
     fn rebuild_removes_worked_when_log_is_empty() {
-        let text = rebuilt("---\npunchcard__worked:\n  - \"[[26-10-30]] 2\"\n---\nbody");
+        let text = rebuilt("---\npunchcard__worked:\n  - \"[[26-10-30|2]]\"\n---\nbody");
 
         assert_eq!(text, "---\n---\nbody");
     }
@@ -910,7 +927,7 @@ pub(crate) mod tests {
 
         assert_eq!(
             text,
-            "---\npunchcard__worked:\n  - \"[[26-10-31]] 0\"\n---\n### Log\n#### 26/11/01 01:00 -"
+            "---\npunchcard__worked:\n  - \"[[26-10-31|0]]\"\n---\n### Log\n#### 26/11/01 01:00 -"
         );
     }
 }

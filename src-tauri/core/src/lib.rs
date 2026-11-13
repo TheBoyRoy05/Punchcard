@@ -302,7 +302,7 @@ mod tests {
 
         assert!(log.running());
         assert_eq!(worked_hours(log.spans()), 0.0);
-        assert_eq!(worked(&log), ["[[26-10-30]] 0"]);
+        assert_eq!(worked(&log), ["[[26-10-30|0]]"]);
     }
 
     #[test]

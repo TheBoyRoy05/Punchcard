@@ -5,5 +5,5 @@
     { "start": "2026-11-01T03:30", "end": "2026-11-01T04:30", "entry": "Crosses the day start, so it counts toward 26-10-31." }
   ],
   "bad_headings": [],
-  "punchcard__worked": ["[[26-10-31]] 1", "[[26-11-01]] 0.02", "[[26-11-02]] 1"]
+  "punchcard__worked": ["[[26-10-31|1]]", "[[26-11-01|0.02]]", "[[26-11-02|1]]"]
 }

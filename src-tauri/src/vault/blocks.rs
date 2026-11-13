@@ -184,7 +184,7 @@ mod tests {
 
         assert_eq!(
             fs::read_to_string(&path).unwrap(),
-            "---\nstatus: Done\npunchcard__worked:\n  - \"[[26-11-01]] 1.5\"\n---\n### Log\n#### 26/11/01 09:00 - 26/11/01 10:30\nWrote it.\n"
+            "---\nstatus: Done\npunchcard__worked:\n  - \"[[26-11-01|1.5]]\"\n---\n### Log\n#### 26/11/01 09:00 - 26/11/01 10:30\nWrote it.\n"
         );
     }
 
@@ -202,13 +202,13 @@ mod tests {
         assert!(text.ends_with(
             "### Log\n#### 26/11/01 14:00 - 26/11/01 15:00\nNew.\n#### 26/11/01 12:00 - 26/11/01 13:00\n"
         ));
-        assert!(text.contains("punchcard__worked:\n  - \"[[26-11-01]] 2\"\n"));
+        assert!(text.contains("punchcard__worked:\n  - \"[[26-11-01|2]]\"\n"));
     }
 
     #[test]
     fn save_without_a_block_deletes_the_original_and_its_derived_properties() {
         let vault = TempVault::new("save-delete");
-        let text = "---\npunchcard__worked:\n  - \"[[26-11-01]] 1\"\n---\n### Log\n#### 26/11/01 09:00 - 26/11/01 10:00\n";
+        let text = "---\npunchcard__worked:\n  - \"[[26-11-01|1]]\"\n---\n### Log\n#### 26/11/01 09:00 - 26/11/01 10:00\n";
         let path = write(&vault, "Port.md", text);
 
         let original = block("26/11/01 09:00 - 26/11/01 10:00", "");
@@ -268,7 +268,7 @@ mod tests {
     #[test]
     fn save_refuses_an_entry_that_would_end_the_log_and_keeps_the_note() {
         let vault = TempVault::new("save-heading-entry");
-        let text = "---\npunchcard__worked:\n  - \"[[26-11-01]] 1\"\n---\n### Log\n#### 26/11/01 09:00 - 26/11/01 10:00\n";
+        let text = "---\npunchcard__worked:\n  - \"[[26-11-01|1]]\"\n---\n### Log\n#### 26/11/01 09:00 - 26/11/01 10:00\n";
         let path = write(&vault, "Port.md", text);
 
         let original = block("26/11/01 09:00 - 26/11/01 10:00", "");

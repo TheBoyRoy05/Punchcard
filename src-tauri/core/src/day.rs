@@ -37,9 +37,10 @@ pub struct WorkedDay {
 }
 
 impl WorkedDay {
-    // The `punchcard__worked` item: a daily-note link Bases can follow, then that day's hours.
+    // The `punchcard__worked` item: a daily-note link aliased to that day's hours. Obsidian indexes a
+    // frontmatter link only when the whole value is one wikilink, so the hours live in the alias.
     pub fn format(self) -> Option<String> {
-        Some(format!("[[{}]] {}", format_day(self.day)?, self.hours))
+        Some(format!("[[{}|{}]]", format_day(self.day)?, self.hours))
     }
 }
 
@@ -211,14 +212,14 @@ mod tests {
             .map(|day| day.format().unwrap())
             .collect();
 
-        assert_eq!(days, ["[[26-10-30]] 1.5", "[[26-11-01]] 1"]);
+        assert_eq!(days, ["[[26-10-30|1.5]]", "[[26-11-01|1]]"]);
     }
 
     #[test]
     fn worked_days_lists_a_day_with_only_a_running_block_at_zero_hours() {
         let days = worked_days([span("26/11/02 09:00 -")], DAY_START);
 
-        assert_eq!(days[0].format().as_deref(), Some("[[26-11-02]] 0"));
+        assert_eq!(days[0].format().as_deref(), Some("[[26-11-02|0]]"));
     }
 
     #[test]
@@ -234,6 +235,6 @@ mod tests {
             .map(|day| day.format().unwrap())
             .collect();
 
-        assert_eq!(days, ["[[26-11-01]] 9", "[[26-11-02]] 0"]);
+        assert_eq!(days, ["[[26-11-01|9]]", "[[26-11-02|0]]"]);
     }
 }
