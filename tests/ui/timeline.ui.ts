@@ -540,7 +540,13 @@ test("a block of a note missing from the picker list draws with that note's name
   await expect(options.filter({ hasText: COMPLETED.name })).toHaveCount(0);
 });
 
-// The harness clock stands still, so a block started at now has no width to draw, and its row's button shows the start landed.
+test("a task started in a minute the page has not ticked to yet shows its block at once", async ({ page }) => {
+  await page.evaluate(() => (window.punchcard.clockMinutes = 1));
+  await page.getByRole("button", { name: "Start Port Task Timer to Rust Stint", exact: true }).click();
+
+  await expect(blockOf(page, PORT, NOW + 1)).toHaveAccessibleName("Port Task Timer to Rust Stint, 18:10-running");
+});
+
 test("a task row's play button starts the task, and its stop button stops the running block", async ({ page }) => {
   await page.getByRole("button", { name: "Start Port Task Timer to Rust Stint", exact: true }).click();
 

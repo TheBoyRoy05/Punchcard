@@ -6,7 +6,8 @@ import { dayWindow, formatSpan, overlaps, type Block } from "../../src/wasm/core
 import { BLOCK_MIN_MINUTES, BLOCK_MINUTES, BLOCKS, COMPLETED, DAY_START_HOUR, NOTES, NOW, type SavedBlock } from "./fixture";
 
 const store = [...BLOCKS];
-window.punchcard = { saves: [], opened: [], refused: null, saveMs: 0, toggles: [] };
+window.punchcard = { saves: [], opened: [], refused: null, saveMs: 0, toggles: [], clockMinutes: 0 };
+const now = (): number => NOW + window.punchcard.clockMinutes;
 
 // Like the Tauri host, a save is refused unless the note still holds the original heading, and a loaded note's
 // `running` reads its whole log.
@@ -22,7 +23,7 @@ const host: TimelineHost = {
   dayStartHour: DAY_START_HOUR,
   blockMinutes: BLOCK_MINUTES,
   blockMinMinutes: BLOCK_MIN_MINUTES,
-  now: () => NOW,
+  now,
   save: async (original, block) => {
     window.punchcard.saves.push({ original: original && saved(original), block: block && saved(block) });
     await new Promise((resolve) => window.setTimeout(resolve, window.punchcard.saveMs));
@@ -48,9 +49,9 @@ const host: TimelineHost = {
     const index = runningBlock(path);
     const running = store[index];
     if (running === undefined) {
-      store.push({ note: path, span: { start: NOW, end: null }, entry: "" });
+      store.push({ note: path, span: { start: now(), end: null }, entry: "" });
     } else {
-      store[index] = { ...running, span: { ...running.span, end: NOW } };
+      store[index] = { ...running, span: { ...running.span, end: now() } };
     }
     return Promise.resolve({ ok: true, running: running === undefined });
   },

@@ -181,6 +181,8 @@
     if (ticket !== loads) {
       return "";
     }
+    // The clock ticks every NOW_REFRESH_MS, so a block a toggle just started can begin after the last tick and draw nothing.
+    now = readNow();
     blocks = loaded.blocks;
     rangeNotes = loaded.notes;
     const reported = new Set(loaded.notes.map((note) => note.path));

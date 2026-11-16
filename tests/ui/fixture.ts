@@ -16,6 +16,8 @@ export interface HarnessState {
   // How long each save takes, so a test can act while one is still in flight.
   saveMs: number;
   toggles: string[];
+  // Minutes the host's clock has run past NOW, which the page reads only on its own refresh or a reload.
+  clockMinutes: number;
 }
 
 declare global {
