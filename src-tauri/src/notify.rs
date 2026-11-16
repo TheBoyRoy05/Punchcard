@@ -1,5 +1,6 @@
-use std::env;
 use std::process::{Command, Stdio};
+use std::time::Duration;
+use std::{env, thread};
 
 use notify_rust::{Notification, NotificationResponse};
 
@@ -37,8 +38,14 @@ pub fn show(title: &str, message: &str, url: Option<&str>) {
     }
 }
 
-// Returns once the notification is clicked, dismissed or, on macOS, gone from the screen.
+// Returns once the notification is clicked or dismissed. On macOS 26 the wait never ends on its own and its memory
+// grows, so the process exits after a minute; a click after that does nothing.
 pub fn show_and_open_on_click(title: &str, message: &str, url: &str) -> Result<(), String> {
+    thread::spawn(|| {
+        thread::sleep(Duration::from_secs(60));
+        std::process::exit(0);
+    });
+
     let shown = notification(title, message)
         .action(OPEN_ACTION, "Open note")
         .show()
