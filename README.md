@@ -55,7 +55,11 @@ punch timeline week   # this week
 punch toggle "Note name"
 ```
 
-`punch toggle` starts the note's block, or stops it when it is running. Each block is a heading under `### Log`, and an empty end means the block is still running:
+`punch toggle` starts the note's block, or stops it when it is running. Bind `punch timeline` to a key with your OS's shortcut tool, such as Shortcuts on macOS, to open the timeline from anywhere.
+
+On macOS, `punch` posts its notifications as Terminal, since it has no app bundle of its own, so allow notifications for Terminal in System Settings.
+
+Each block is a heading under `### Log`, and an empty end means the block is still running:
 
 ```markdown
 ### Log
